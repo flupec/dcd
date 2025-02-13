@@ -1,0 +1,20 @@
+! format=dcd
+! setting=value
+
+#1 Programming
+    - Definition ===
+        Computer programming or coding is the composition of sequences of instructions,
+        called programs, that computers can follow to perform tasks
+    # 1.1 Variables
+        - Local variables === A local variable is a variable that is given local scope
+        - Global variables === A global variable is a variable with global scope
+        - Scope of variable === A scope is a part of program where variable is valid
+    # 1.2 Control structures
+        # 1.2.1 If statements (examples)
+        # 1.2.2 Loops (examples)
+#2 Java
+    # 2.1 Exception hierarchy
+    # 2.2 Collections API
+        - How generics used in collections API
+        - List API
+        - Map API
