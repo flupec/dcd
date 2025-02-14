@@ -39,7 +39,7 @@ class NumerationTest extends FunSuite:
     )
     for (parent, child) <- parentsChilds do assert(child.isChildOf(parent))
 
-  test("Child of must return false for childs"):
+  test("Child of must return false for non-childs"):
     val parentsAndSomething = List(
       List(1) -> List(1),
       List(1) -> List(2),
@@ -59,3 +59,11 @@ class NumerationTest extends FunSuite:
       List(1, 2) -> List(1, 2, 3)
     )
     for (parent, child) <- parentsChilds do assert(child.isChildOf(parent))
+
+  test("Child of must return false for incorrect transitive childs"):
+    val parentsSomething = List(
+      List(1) -> List(2, 1, 1),
+      List(1, 2) -> List(2, 2, 3, 4),
+      List(1, 2) -> List(1, 3, 4, 5),
+    )
+    for (parent, smth) <- parentsSomething do assert(!smth.isChildOf(parent))

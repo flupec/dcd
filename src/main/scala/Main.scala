@@ -38,6 +38,14 @@ val viewCtrl = ViewController(
         ArraySeq.empty
       ),
       CompetencyView(
+        "While loop",
+        ArraySeq(1, 2, 1),
+        KnowledgeCompleteness.NotMentioned,
+        ArraySeq.empty,
+        ArraySeq.empty,
+        ArraySeq.empty
+      ),
+      CompetencyView(
         "Java",
         ArraySeq(2),
         KnowledgeCompleteness.NotMentioned,

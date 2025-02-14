@@ -19,6 +19,7 @@ class NumeratedListView private (
     val competencies: Seq[CompetencyView],
     val state: ViewState,
     val layout: Layout,
+    val maxNestLevel: Int,
     val log: Logger = Logger(classOf[NumeratedListView])
 ) extends Renderable:
 
@@ -45,8 +46,8 @@ class NumeratedListView private (
 
   override def render(frame: Frame, at: Rect) =
     val chunks: Array[Rect] = layout.split(at)
-    require(chunks.size == state.nestLevel + 1, s"Chunks size=${chunks.size}, nestLevel=${state.nestLevel}")
-    for level <- 0 to state.nestLevel do renderLevel(frame, chunks(level), level)
+    require(chunks.size == maxNestLevel + 1, s"Chunks size=${chunks.size}, maxNestLevel=${state.nestLevel}")
+    for level <- 0 to maxNestLevel do renderLevel(frame, chunks(level), level)
 
   private def renderLevel(frame: Frame, at: Rect, nestLevel: Int) =
     val competenciesToRender: Array[ListWidget.Item] = toRenderCompetencies(nestLevel)
@@ -68,10 +69,19 @@ class NumeratedListView private (
 
   private def toRenderCompetencies(level: Int): Seq[CompetencyView] =
     val atLevel = competenciesAtLevel(level)
-    if level == 0 || level < state.nestLevel then atLevel
+    if level > state.nestLevel + 1 then
+      // Do not render transitive childs
+      List.empty
+    else if level == state.nestLevel + 1 then
+      // Render only childs of current selection
+      atLevel.filter(c => c.numeration.isChildOf(state.currentSelected))
+    else if level == 0 then
+      // Render all cuz items at root should be shown as-is
+      atLevel
     else
-      val prev = state.prevSelection
-      atLevel.filter(c => prev.map(p => c.numeration.isChildOf(p)).getOrElse(false))
+      // Render only direct childs of previous level selected items
+      val prevLevelSelected = state.selectedAtLevel(level - 1).get
+      atLevel.filter(c => c.numeration.isChildOf(prevLevelSelected))
 
 end NumeratedListView
 
@@ -88,17 +98,17 @@ object NumeratedListView:
 
   def apply(competencies: Seq[CompetencyView], state: ViewState): NumeratedListView =
     require(competencies.nonEmpty)
-    new NumeratedListView(competencies, state, computeLayout(state))
+    val maxNestLevel = competencies.map(c => 0.max(c.numeration.size - 1)).max
+    new NumeratedListView(competencies, state, computeLayout(maxNestLevel), maxNestLevel)
 
-  def computeLayout(state: ViewState): Layout =
-    val nestLevel = state.nestLevel
-    require(nestLevel >= 0)
+  def computeLayout(maxNestLevel: Int): Layout =
+    require(maxNestLevel >= 0)
 
-    val occupyPercent = 100 / (nestLevel + 1)
-    val occupyCorrection = 100 % (nestLevel + 1)
+    val occupyPercent = 100 / (maxNestLevel + 1)
+    val occupyCorrection = 100 % (maxNestLevel + 1)
 
     val constraints: Array[Constraint] = Array.from(
-      for lvl <- 0 to nestLevel
+      for lvl <- 0 to maxNestLevel
       yield Constraint.Percentage(occupyPercent + occupyCorrection)
     )
     Layout(Horizontal, constraints = constraints)
@@ -119,6 +129,6 @@ object NumeratedListView:
 
     def currentSelected(current: Numeration) = copy(currentSelected = current)
 
-    def prevSelection: Option[Numeration] = if selectionContext.nonEmpty then selectionContext.headOption else None
+    def selectedAtLevel(level: Int): Option[Numeration] = selectionContext.find(n => n.size == level + 1)
 
   end ViewState

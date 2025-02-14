@@ -47,7 +47,7 @@ extension (curr: Numeration)
     */
   def isChildOf(parent: Numeration): Boolean =
     if curr.size < 2 || curr.size < parent.size + 1 then false
-    else if curr.size == parent.size + 1 then parent.last == curr(curr.size - 2)
+    else if curr.size == parent.size + 1 then parent == curr.slice(0, curr.size - 1)
     else curr.directParent.map(currParent => currParent.isChildOf(parent)).getOrElse(false)
 
   /** Returns direct parent of this */
