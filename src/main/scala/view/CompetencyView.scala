@@ -54,7 +54,11 @@ extension (curr: Numeration)
   def directParent: Option[Numeration] = Option.when(curr.size > 1)(curr.slice(0, curr.size - 1))
 end extension
 
-case class QA(val questionBody: String, val status: KnowledgeCompleteness, answerBody: Option[String] = Option.empty)
+case class QA(
+    val questionBody: String,
+    val status: KnowledgeCompleteness = KnowledgeCompleteness.NotMentioned,
+    answerBody: Option[String] = Option.empty
+)
 
 enum KnowledgeCompleteness:
   case NotMentioned

@@ -9,6 +9,7 @@ import view.CompetencyView
 import view.KnowledgeCompleteness
 import scala.collection.immutable.ArraySeq
 import view.ViewController
+import view.QA
 
 val viewCtrl = ViewController(
   NumeratedListView(
@@ -18,7 +19,14 @@ val viewCtrl = ViewController(
         ArraySeq(1),
         KnowledgeCompleteness.NotMentioned,
         ArraySeq.empty,
-        ArraySeq.empty,
+        Vector(
+          QA(
+            questionBody = "Definition",
+            answerBody = Some(
+              "Computer programming or coding is the composition of sequences of instructions, called programs, that computers can follow to perform tasks"
+            )
+          )
+        ),
         ArraySeq.empty
       ),
       CompetencyView(
@@ -26,7 +34,20 @@ val viewCtrl = ViewController(
         ArraySeq(1, 1),
         KnowledgeCompleteness.NotMentioned,
         ArraySeq.empty,
-        ArraySeq.empty,
+        Vector(
+          QA(
+            questionBody = "Local variables",
+            answerBody = Some("A local variable is a variable that is given local scope")
+          ),
+          QA(
+            questionBody = "Global variables",
+            answerBody = Some("A global variable is a variable with global scope")
+          ),
+          QA(
+            questionBody = "Scope of variable",
+            answerBody = Some("A scope is a part of program where variable is valid")
+          )
+        ),
         ArraySeq.empty
       ),
       CompetencyView(

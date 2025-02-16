@@ -1,1 +1,3 @@
 1 Test parser competency headers with 10, 11 digits
+2 Rewrite competencies render at NumeratedListView - only 3 level of competencies must be rendered,
+see TODO in NumeratedListView#renderCompetencies for details

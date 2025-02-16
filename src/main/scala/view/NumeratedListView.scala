@@ -15,12 +15,13 @@ import tui.widgets.ListWidget
 import view.NumeratedListView.SelectedItemStyle
 import view.NumeratedListView.ViewState
 
+val log: Logger = Logger(classOf[NumeratedListView])
+
 class NumeratedListView private (
     val competencies: Seq[CompetencyView],
     val state: ViewState,
-    val layout: Layout,
-    val maxNestLevel: Int,
-    val log: Logger = Logger(classOf[NumeratedListView])
+    val competenciesLayout: Layout,
+    val maxNestLevel: Int
 ) extends Renderable:
 
   def childSelected: Option[NumeratedListView] =
@@ -45,27 +46,39 @@ class NumeratedListView private (
   private def withState(s: ViewState) = NumeratedListView(competencies, s)
 
   override def render(frame: Frame, at: Rect) =
-    val chunks: Array[Rect] = layout.split(at)
-    require(chunks.size == maxNestLevel + 1, s"Chunks size=${chunks.size}, maxNestLevel=${state.nestLevel}")
-    for level <- 0 to maxNestLevel do renderLevel(frame, chunks(level), level)
+    val layout = Layout(
+      direction = Horizontal,
+      constraints = Array(Constraint.Percentage(60), Constraint.Percentage(40))
+    )
+    val chunks = layout.split(at)
+    require(chunks.size == 2)
 
-  private def renderLevel(frame: Frame, at: Rect, nestLevel: Int) =
+    renderCompetencies(frame, chunks(0))
+    renderQA(frame, chunks(1))
+
+  private def renderCompetencies(frame: Frame, at: Rect) =
+    val chunks: Array[Rect] = competenciesLayout.split(at)
+    require(chunks.size == maxNestLevel + 1, s"Chunks size=${chunks.size}, maxNestLevel=${state.nestLevel}")
+    // TODO Ideally, we should render only 3 levels: previous, current and last, and use special symbols to show that
+    // you can go lower / higher in the hierarchy. If we don't do this, then with a large nesting of competencies, the
+    // render will be broken, all competencies will be cut off by the composer
+    for level <- 0 to maxNestLevel do renderCompetencyLevel(frame, chunks(level), level)
+
+  private def renderCompetencyLevel(frame: Frame, at: Rect, nestLevel: Int) =
     val competenciesToRender: Array[ListWidget.Item] = toRenderCompetencies(nestLevel)
-      .map(competencyListItem(_, nestLevel))
+      .map(competencyListItem(_, nestLevel, at))
       .toArray
 
     val widget = ListWidget(items = competenciesToRender)
     frame.renderWidget(widget, at)
 
-  private def competencyListItem(c: CompetencyView, nestLevel: Int): ListWidget.Item =
+  private def competencyListItem(c: CompetencyView, nestLevel: Int, at: Rect): ListWidget.Item =
     val selectedStyle = if state.currentSelected == c.numeration then SelectedItemStyle else Style.DEFAULT
-
-    val header = Text.from(Span.styled(c.numerationView + ": " + c.name, selectedStyle))
+    val header = Span.styled(NumeratedListView.competencyHeaderText(c), selectedStyle).bounded(at)
     ListWidget.Item(content = header)
 
-  private def competenciesAtLevel(level: Int): Seq[CompetencyView] = competencies
-    .filter(c => c.numeration.size == level + 1)
-    .sortBy(c => c.numeration.lift(level).getOrElse(0))
+  private def competenciesAtLevel(level: Int): Seq[CompetencyView] =
+    NumeratedListView.competenciesAtLevel(competencies, level)
 
   private def toRenderCompetencies(level: Int): Seq[CompetencyView] =
     val atLevel = competenciesAtLevel(level)
@@ -83,11 +96,31 @@ class NumeratedListView private (
       val prevLevelSelected = state.selectedAtLevel(level - 1).get
       atLevel.filter(c => c.numeration.isChildOf(prevLevelSelected))
 
+  private def renderQA(frame: Frame, at: Rect) =
+    val widget = ListWidget(items = currentCompetency.questions.map(qa => qaListItem(qa, at)).toArray)
+    frame.renderWidget(widget, at)
+
+  private def qaListItem(qa: QA, at: Rect): ListWidget.Item =
+    // val selectedStyle = if state.currentSelected == c.numeration then SelectedItemStyle else Style.DEFAULT
+    // TODO selected
+    val selectedStyle = Style.DEFAULT
+    val q = Some(Span.styled(s"Q: ${qa.questionBody}", selectedStyle).bounded(at))
+    val a = qa.answerBody.map(ans => s"A: ${ans}").map(ans => Span.styled(ans, selectedStyle).bounded(at))
+    val qaText = Array(q, a).filter(_.isDefined).map(_.get).reduceLeft((left, right) => left.concat(right))
+    ListWidget.Item(content = qaText)
+
+  private def currentCompetency: CompetencyView = competencies.find(c => c.numeration == state.currentSelected).get
 end NumeratedListView
 
 object NumeratedListView:
 
   private val SelectedItemStyle: Style = Style(addModifier = Modifier.BOLD, bg = Some(Color.White))
+
+  def competencyHeaderText(c: CompetencyView): String = c.numerationView + ": " + c.name
+
+  def competenciesAtLevel(all: Seq[CompetencyView], level: Int): Seq[CompetencyView] = all
+    .filter(c => c.numeration.size == level + 1)
+    .sortBy(c => c.numeration.lift(level).getOrElse(0))
 
   def apply(competencies: Seq[CompetencyView]): NumeratedListView =
     require(competencies.nonEmpty)
@@ -99,19 +132,24 @@ object NumeratedListView:
   def apply(competencies: Seq[CompetencyView], state: ViewState): NumeratedListView =
     require(competencies.nonEmpty)
     val maxNestLevel = competencies.map(c => 0.max(c.numeration.size - 1)).max
-    new NumeratedListView(competencies, state, computeLayout(maxNestLevel), maxNestLevel)
+    new NumeratedListView(competencies, state, computeLayout(competencies, maxNestLevel), maxNestLevel)
 
-  def computeLayout(maxNestLevel: Int): Layout =
+  def computeLayout(competencies: Seq[CompetencyView], maxNestLevel: Int): Layout =
     require(maxNestLevel >= 0)
 
-    val occupyPercent = 100 / (maxNestLevel + 1)
-    val occupyCorrection = 100 % (maxNestLevel + 1)
+    val gap = 2
+    val fallbackMinW = 40 + gap
 
-    val constraints: Array[Constraint] = Array.from(
-      for lvl <- 0 to maxNestLevel
-      yield Constraint.Percentage(occupyPercent + occupyCorrection)
+    val competenciesConstraints: Array[Constraint] = Array.from(
+      for lvl <- 0 to maxNestLevel yield
+        val headerMinW = competenciesAtLevel(competencies, lvl)
+          .map(competencyHeaderText)
+          .map(_.size)
+          .maxOption
+          .getOrElse(fallbackMinW)
+        Constraint.Min(headerMinW + gap)
     )
-    Layout(Horizontal, constraints = constraints)
+    Layout(Horizontal, constraints = competenciesConstraints)
 
   case class ViewState(
       val currentSelected: Numeration,
