@@ -30,18 +30,18 @@ class NumeratedListView private (
     else childs.headOption.map(select => withState(state.childSelected(select.numeration)))
 
   private def childCompetencies: Seq[CompetencyView] = competencies
-    .filter(c => c.numeration.directParent.map(p => p == state.currentSelected).getOrElse(false))
+    .filter(c => c.numeration.directParent.map(p => p == state.selectedCompetency).getOrElse(false))
 
   def parentSelected: Option[NumeratedListView] =
     if state.selectionContext.nonEmpty then Some(withState(state.parentSelected)) else None
 
   def nextSelected: Option[NumeratedListView] = competencies
-    .find(c => c.numeration == state.currentSelected.next)
-    .map(next => withState(state.currentSelected(next.numeration)))
+    .find(c => c.numeration == state.selectedCompetency.next)
+    .map(next => withState(state.competencySelected(next.numeration)))
 
   def prevSelected: Option[NumeratedListView] = competencies
-    .find(c => c.numeration == state.currentSelected.previous)
-    .map(next => withState(state.currentSelected(next.numeration)))
+    .find(c => c.numeration == state.selectedCompetency.previous)
+    .map(next => withState(state.competencySelected(next.numeration)))
 
   private def withState(s: ViewState) = NumeratedListView(competencies, s)
 
@@ -73,7 +73,7 @@ class NumeratedListView private (
     frame.renderWidget(widget, at)
 
   private def competencyListItem(c: CompetencyView, nestLevel: Int, at: Rect): ListWidget.Item =
-    val selectedStyle = if state.currentSelected == c.numeration then SelectedItemStyle else Style.DEFAULT
+    val selectedStyle = if state.selectedCompetency == c.numeration then SelectedItemStyle else Style.DEFAULT
     val header = Span.styled(NumeratedListView.competencyHeaderText(c), selectedStyle).bounded(at)
     ListWidget.Item(content = header)
 
@@ -87,13 +87,13 @@ class NumeratedListView private (
       List.empty
     else if level == state.nestLevel + 1 then
       // Render only childs of current selection
-      atLevel.filter(c => c.numeration.isChildOf(state.currentSelected))
+      atLevel.filter(c => c.numeration.isChildOf(state.selectedCompetency))
     else if level == 0 then
       // Render all cuz items at root should be shown as-is
       atLevel
     else
       // Render only direct childs of previous level selected items
-      val prevLevelSelected = state.selectedAtLevel(level - 1).get
+      val prevLevelSelected = state.findSelectedAtLevel(level - 1).get
       atLevel.filter(c => c.numeration.isChildOf(prevLevelSelected))
 
   private def renderQA(frame: Frame, at: Rect) =
@@ -108,8 +108,8 @@ class NumeratedListView private (
     val a = qa.answerBody.map(ans => s"A: ${ans}").map(ans => Span.styled(ans, selectedStyle).bounded(at))
     val qaText = Array(q, a).filter(_.isDefined).map(_.get).reduceLeft((left, right) => left.concat(right))
     ListWidget.Item(content = qaText)
-
-  private def currentCompetency: CompetencyView = competencies.find(c => c.numeration == state.currentSelected).get
+    
+  private def currentCompetency: CompetencyView = competencies.find(c => c.numeration == state.selectedCompetency).get
 end NumeratedListView
 
 object NumeratedListView:
@@ -125,7 +125,7 @@ object NumeratedListView:
   def apply(competencies: Seq[CompetencyView]): NumeratedListView =
     require(competencies.nonEmpty)
     val first = competencies.sortBy(c => c.numeration.lift(0).getOrElse(0)).head
-    val state = ViewState(currentSelected = first.numeration)
+    val state = ViewState(selectedCompetency = first.numeration)
 
     apply(competencies, state)
 
@@ -152,21 +152,21 @@ object NumeratedListView:
     Layout(Horizontal, constraints = competenciesConstraints)
 
   case class ViewState(
-      val currentSelected: Numeration,
-      val selectionContext: List[Numeration] = List.empty // Stack of previously selected currentSelected numerations
+      val selectedCompetency: Numeration,
+      val selectionContext: List[Numeration] = List.empty // Stack of previously selected selectedCompetency numerations
   ):
-    def nestLevel: Int = currentSelected.size - 1
+    def nestLevel: Int = selectedCompetency.size - 1
 
     def childSelected(child: Numeration): ViewState =
-      copy(currentSelected = child, selectionContext = currentSelected :: selectionContext)
+      copy(selectedCompetency = child, selectionContext = selectedCompetency :: selectionContext)
 
     def parentSelected: ViewState =
       selectionContext match
-        case newCurrent :: rest => copy(currentSelected = newCurrent, selectionContext = rest)
+        case newCurrent :: rest => copy(selectedCompetency = newCurrent, selectionContext = rest)
         case Nil                => this
 
-    def currentSelected(current: Numeration) = copy(currentSelected = current)
+    def competencySelected(current: Numeration) = copy(selectedCompetency = current)
 
-    def selectedAtLevel(level: Int): Option[Numeration] = selectionContext.find(n => n.size == level + 1)
+    def findSelectedAtLevel(level: Int): Option[Numeration] = selectionContext.find(n => n.size == level + 1)
 
   end ViewState
