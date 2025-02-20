@@ -1,9 +1,6 @@
 import tui.withTerminal
 import tui.crossterm.CrosstermJni
 import tui.Terminal
-import tui.crossterm.Duration
-import tui.crossterm.Event
-import tui.crossterm.KeyCode
 import view.NumeratedListView
 import view.CompetencyView
 import view.KnowledgeCompleteness
@@ -101,14 +98,3 @@ private def appLoop(jni: CrosstermJni, terminal: Terminal) =
   while true do
     viewCtrl.handleInput(jni)
     terminal.draw(frame => viewCtrl.render(frame, frame.size))
-
-private def input(jni: CrosstermJni) =
-  if jni.poll(Duration(0, 1000)) then
-    jni.read() match
-      case key: Event.Key => handleKeyInput(key)
-      case _              => ()
-
-private def handleKeyInput(key: Event.Key) =
-  key.keyEvent.code match
-    case char: KeyCode.Char if char.c() == 'q' => System.exit(0)
-    case _                                     => ()
