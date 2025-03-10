@@ -4,7 +4,7 @@ import model.QA
 import tui.Terminal
 import tui.crossterm.CrosstermJni
 import tui.withTerminal
-import view.NumeratedListView
+import view.CompetenciesView
 import view.MessageShow
 import view.LogView
 
@@ -82,7 +82,7 @@ val LogBar = LogView()
 
 given MessageShow = LogBar.updateLogs
 
-val NumListView = NumeratedListView(Controller)
+val NumListView = CompetenciesView(Controller)
 val ViewController = view.ViewController(NumListView, LogBar)
 
 @main def hello(): Unit =

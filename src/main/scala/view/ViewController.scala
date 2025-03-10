@@ -40,4 +40,4 @@ class ViewController(
     logbar.render(frame, chunks(1))
 
 object ViewController:
-  def apply(view: NumeratedListView, logbar: LogView) = new ViewController(view, logbar)
+  def apply(view: CompetenciesView, logbar: LogView) = new ViewController(view, logbar)

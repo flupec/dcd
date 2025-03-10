@@ -21,15 +21,15 @@ import tui.crossterm.KeyCode
 import tui.widgets.BlockWidget
 import tui.widgets.ListWidget
 import tui.widgets.ParagraphWidget
-import view.NumeratedListView.Focus
-import view.NumeratedListView.Focus.Popup
-import view.NumeratedListView.PopupType
-import view.NumeratedListView.SelectedItemStyle
-import view.NumeratedListView.ViewState
+import view.CompetenciesView.Focus
+import view.CompetenciesView.Focus.Popup
+import view.CompetenciesView.PopupType
+import view.CompetenciesView.SelectedItemStyle
+import view.CompetenciesView.ViewState
 
-val log: Logger = Logger(classOf[NumeratedListView])
+val log: Logger = Logger(classOf[CompetenciesView])
 
-class NumeratedListView private (
+class CompetenciesView private (
     val cntrl: CompetenciesController,
     val state: ViewState,
     val competenciesLayout: Layout,
@@ -37,14 +37,14 @@ class NumeratedListView private (
     val show: MessageShow
 ) extends TuiView:
 
-  override def handledKeyboard(key: KeyCode): NumeratedListView = state.focused match
+  override def handledKeyboard(key: KeyCode): CompetenciesView = state.focused match
     case Focus.Competencies => handledCompetenciesInput(key)
     case Focus.QAs          => handledQAsInput(key)
     case Popup(kind, _) =>
       kind match
         case PopupType.CompetencyEstimate => handledCompetencyEstimationInput(key)
 
-  private def handledCompetenciesInput(key: KeyCode): NumeratedListView =
+  private def handledCompetenciesInput(key: KeyCode): CompetenciesView =
     key match
       // Arrows
       case _: KeyCode.Up    => prevCompetencySelected.getOrElse(this)
@@ -69,7 +69,7 @@ class NumeratedListView private (
         this
       case _ => this
 
-  private def childCompetencySelected: Option[NumeratedListView] =
+  private def childCompetencySelected: Option[CompetenciesView] =
     val childs = childCompetencies
     if childs.isEmpty then None
     else childs.headOption.map(select => withState(state.childSelected(select.numeration)))
@@ -77,20 +77,20 @@ class NumeratedListView private (
   private def childCompetencies: Seq[CompetencyView] = cntrl.competencies
     .filter(c => c.numeration.directParent.map(p => p == state.selected.competency).getOrElse(false))
 
-  private def parentCompetencySelected: Option[NumeratedListView] =
+  private def parentCompetencySelected: Option[CompetenciesView] =
     if state.selectionContext.nonEmpty then Some(withState(state.parentSelected)) else None
 
-  private def nextCompetencySelected: Option[NumeratedListView] = cntrl.competencies
+  private def nextCompetencySelected: Option[CompetenciesView] = cntrl.competencies
     .find(c => c.numeration == state.selected.competency.next)
     .map(next => withState(state.neighbourSelected(next.numeration)))
 
-  private def prevCompetencySelected: Option[NumeratedListView] = cntrl.competencies
+  private def prevCompetencySelected: Option[CompetenciesView] = cntrl.competencies
     .find(c => c.numeration == state.selected.competency.previous)
     .map(next => withState(state.neighbourSelected(next.numeration)))
 
-  private def withState(s: ViewState) = NumeratedListView(s)(using cntrl, show)
+  private def withState(s: ViewState) = CompetenciesView(s)(using cntrl, show)
 
-  private def focusChanged(resultFocus: Focus): NumeratedListView =
+  private def focusChanged(resultFocus: Focus): CompetenciesView =
     (state.focused, resultFocus) match
       case (Focus.Competencies, Focus.QAs) => changeFocusBetweenQACompetency(resultFocus)
       case (Focus.QAs, Focus.Competencies) => changeFocusBetweenQACompetency(resultFocus)
@@ -98,7 +98,7 @@ class NumeratedListView private (
       // Or from Competency or QAs to popup
       case _ => withState(state.focusedOn(resultFocus))
 
-  private def changeFocusBetweenQACompetency(focus: Focus): NumeratedListView =
+  private def changeFocusBetweenQACompetency(focus: Focus): CompetenciesView =
     // Init selected qa with first item in current competency
     val selectedQAIndex = (currentCompetency, state.selected.qaIndex) match
       case (competency, None) => Option.when(competency.questions.nonEmpty)(0)
@@ -108,7 +108,7 @@ class NumeratedListView private (
       case None             => this // Do not change focus - there are no qa items
       case Some(selectedQA) => withState(state.focusedOn(focus).qaSelected(selectedQA))
 
-  private def handledQAsInput(key: KeyCode): NumeratedListView =
+  private def handledQAsInput(key: KeyCode): CompetenciesView =
     key match
       // Arrows
       case _: KeyCode.Up   => prevQASelected.getOrElse(this)
@@ -123,7 +123,7 @@ class NumeratedListView private (
         this
       case _ => this
 
-  private def nextQASelected: Option[NumeratedListView] =
+  private def nextQASelected: Option[CompetenciesView] =
     val qa: Seq[QA] = currentCompetency.questions
     val nextIdx: Option[Int] = state.selected.qaIndex
       .map(currIdx => (qa.size - 1).min(currIdx + 1))
@@ -131,7 +131,7 @@ class NumeratedListView private (
 
     nextIdx.map(newIdx => state.qaSelected(newIdx)).map(withState(_))
 
-  private def prevQASelected: Option[NumeratedListView] =
+  private def prevQASelected: Option[CompetenciesView] =
     val prevIdx: Option[Int] = state.selected.qaIndex
       .map(currIdx => 0.max(currIdx - 1))
       .orElse(Option.when(currentCompetency.questions.nonEmpty)(0)) // or first idx if exists
@@ -182,11 +182,11 @@ class NumeratedListView private (
     val selectedStyle =
       if state.focused == Focus.Competencies && state.selected.competency == c.numeration then SelectedItemStyle
       else Style.DEFAULT
-    val header = Span.styled(NumeratedListView.competencyHeaderText(c, knowledge), selectedStyle).bounded(at)
+    val header = Span.styled(CompetenciesView.competencyHeaderText(c, knowledge), selectedStyle).bounded(at)
     ListWidget.Item(content = header)
 
   private def competenciesAtLevel(level: Int): Seq[CompetencyView] =
-    NumeratedListView.competenciesAtLevel(cntrl.competencies, level)
+    CompetenciesView.competenciesAtLevel(cntrl.competencies, level)
 
   private def toRenderCompetencies(level: Int): Seq[CompetencyView] =
     val atLevel = competenciesAtLevel(level)
@@ -253,7 +253,7 @@ class NumeratedListView private (
       height = ysize
     )
 
-  private def handledCompetencyEstimationInput(key: KeyCode): NumeratedListView =
+  private def handledCompetencyEstimationInput(key: KeyCode): CompetenciesView =
     val focus = state.focused.asInstanceOf[Focus.Popup]
     key match
 
@@ -283,17 +283,13 @@ class NumeratedListView private (
 
   private def currentCompetency: CompetencyView =
     cntrl.competencies.find(c => c.numeration == state.selected.competency).get
-end NumeratedListView
+end CompetenciesView
 
-object NumeratedListView:
+object CompetenciesView:
 
   private val SelectedItemStyle: Style = Style(addModifier = Modifier.BOLD, bg = Some(Color.White))
 
   def competencyHeaderText(c: CompetencyView, k: Option[KnowledgeComputed]): String =
-    // val knowledgePart = c.completeness match
-    //   case KnowledgeCompleteness.NotMentioned      => ""
-    //   case KnowledgeCompleteness.Answered(percent) => s"($percent%)"
-    //   case KnowledgeCompleteness.Unanswered        => "(0%)"
     val knowledgePart = k match
       case None            => ""
       case Some(knowledge) => s"(${knowledge.percent})"
@@ -304,23 +300,23 @@ object NumeratedListView:
     .filter(c => c.numeration.size == level + 1)
     .sortBy(c => c.numeration.lift(level).getOrElse(0))
 
-  def apply(cntrl: CompetenciesController)(using msgShow: MessageShow): NumeratedListView =
+  def apply(cntrl: CompetenciesController)(using msgShow: MessageShow): CompetenciesView =
     val competencies = cntrl.competencies
     require(competencies.nonEmpty)
     val first = competencies.sortBy(_.numeration)(using NumerationOrdering).head
     val state = ViewState(selected = Selection(competency = first.numeration), focused = Focus.Competencies)
 
     val maxNestLevel = competencies.map(c => 0.max(c.numeration.size - 1)).max
-    new NumeratedListView(cntrl, state, computeLayout(competencies, maxNestLevel), maxNestLevel, msgShow)
+    new CompetenciesView(cntrl, state, computeLayout(competencies, maxNestLevel), maxNestLevel, msgShow)
 
   def apply(state: ViewState)(using
       cntrl: CompetenciesController,
       msgShow: MessageShow
-  ): NumeratedListView =
+  ): CompetenciesView =
     val competencies = cntrl.competencies
     require(competencies.nonEmpty)
     val maxNestLevel = competencies.map(c => 0.max(c.numeration.size - 1)).max
-    new NumeratedListView(cntrl, state, computeLayout(competencies, maxNestLevel), maxNestLevel, msgShow)
+    new CompetenciesView(cntrl, state, computeLayout(competencies, maxNestLevel), maxNestLevel, msgShow)
 
   def computeLayout(competencies: Seq[CompetencyView], maxNestLevel: Int): Layout =
     require(maxNestLevel >= 0)
