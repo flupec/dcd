@@ -5,8 +5,7 @@ import common.ParseError
 import parse.ParseInput
 import parse.Parser
 import parse.ParsedCompetency
-
-type CompetenciesFactory = (File) => Either[ParseError, Seq[Competency]]
+import parse.ParsedQA
 
 def readCompetencies(file: File): Either[ParseError, Seq[Competency]] =
   for
@@ -17,11 +16,16 @@ def readCompetencies(file: File): Either[ParseError, Seq[Competency]] =
 
 private def fromParsedCompetencies(p: Seq[ParsedCompetency]): Seq[Competency] = p.map(fromParsedCompetency(_))
 
-private def fromParsedCompetency(p: ParsedCompetency): Competency = ???
-// Competency(
-//   numeration = p.numeration,
-//   qa = null, // TODO
-//   childs = null,
-//   estimate = KnowledgeEstimate.NotMentioned,
-//   computed = None
-// )
+private def fromParsedCompetency(p: ParsedCompetency): Competency =
+  val childs = if p.childs.nonEmpty then p.childs.map(fromParsedCompetency(_)) else List.empty
+  Competency(
+    numeration = p.numeration,
+    name = p.name,
+    qa = p.qa.map(fromParsedQA(_)),
+    childs = childs
+  )
+
+private def fromParsedQA(qa: ParsedQA): QA = QA(
+  question = qa.question,
+  answer = qa.answer
+)

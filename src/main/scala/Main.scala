@@ -1,94 +1,49 @@
+import common.CliError
 import controller.CompetenciesControllerImpl
-import model.Competency
-import model.QA
+import model.readCompetencies
 import tui.Terminal
 import tui.crossterm.CrosstermJni
 import tui.withTerminal
 import view.CompetenciesView
-import view.MessageShow
 import view.LogView
+import view.MessageShow
+import view.ViewController
 
-val Controller = CompetenciesControllerImpl(
-  Vector(
-    Competency(
-      numeration = Vector(1),
-      name = "Programming",
-      qa = Vector(
-        QA(
-          question = "Definition",
-          answer = Some(
-            "Computer programming or coding is the composition of sequences of instructions, called programs, that computers can follow to perform tasks"
-          )
-        )
-      ),
-      childs = Vector(
-        Competency(
-          numeration = Vector(1, 1),
-          name = "Variables",
-          qa = Vector(
-            QA(
-              question = "Local variables",
-              answer = Some("A local variable is a variable that is given local scope")
-            ),
-            QA(
-              question = "Global variables",
-              answer = Some("A global variable is a variable with global scope")
-            ),
-            QA(
-              question = "Scope of variable",
-              answer = Some("A scope is a part of program where variable is valid")
-            )
-          ),
-          childs = Vector.empty
-        ),
-        Competency(
-          numeration = Vector(1, 2),
-          name = "Control structures",
-          qa = Vector.empty,
-          childs = Vector(
-            Competency(
-              numeration = Vector(1, 2, 1),
-              name = "While loop",
-              qa = Vector.empty,
-              childs = Vector.empty
-            )
-          )
-        )
-      )
-    ),
-    Competency(
-      numeration = Vector(2),
-      name = "Java",
-      qa = Vector.empty,
-      childs = Vector(
-        Competency(
-          numeration = Vector(2, 1),
-          name = "Exception hierarchy",
-          qa = Vector.empty,
-          childs = Vector.empty
-        ),
-        Competency(
-          numeration = Vector(2, 2),
-          name = "Collections API",
-          qa = Vector.empty,
-          childs = Vector.empty
-        )
-      )
-    )
-  )
-)
+import java.nio.file.Path
+import scala.util.CommandLineParser
 
 val LogBar = LogView()
-
 given MessageShow = LogBar.updateLogs
 
-val NumListView = CompetenciesView(Controller)
-val ViewController = view.ViewController(NumListView, LogBar)
+@main def hello(args: String*): Unit =
+  if args.isEmpty then
+    println("Usage: dcd -f ./example.dcd")
+    return
 
-@main def hello(): Unit =
-  withTerminal(appLoop)
+  val startResult: Either[common.Error, Unit] = for
+    competenciesFilepath <- getCliArg("-f", args.toList)
+    competencies <- readCompetencies(competenciesFilepath.toFile)
+    controller = CompetenciesControllerImpl(competencies)
+    competenciesView = CompetenciesView(controller)
+    viewController = view.ViewController(competenciesView, LogBar)
+  yield withTerminal(appLoop(viewController))
 
-private def appLoop(jni: CrosstermJni, terminal: Terminal) =
+  if startResult.isLeft then
+    println(startResult.left.get.reason)
+    return
+
+private def getCliArg[A](key: String, args: List[String])(using
+    argParser: CommandLineParser.FromString[A]
+): Either[common.Error, A] =
+  val foundArgValue: Option[A] = args match
+    case key :: value :: _ => argParser.fromStringOption(value)
+    case _                 => None
+  Either.cond(foundArgValue.isDefined, foundArgValue.get, CliError.MissedMandatoryArg(key))
+
+given CommandLineParser.FromString[Path] with
+  def fromString(s: String): Path = Path.of(s)
+
+private def appLoop(viewCntrl: ViewController)(jni: CrosstermJni, terminal: Terminal) =
   while true do
-    ViewController.handleInput(jni)
-    terminal.draw(frame => ViewController.render(frame, frame.size))
+    viewCntrl.handleInput(jni)
+    terminal.draw(frame => viewCntrl.render(frame, frame.size))

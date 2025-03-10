@@ -320,7 +320,7 @@ object DcdParser:
   def isText(c: Char) = !isSpaceOrTabOrEOL(c) && TextPattern.matcher(String.valueOf(c)).matches()
 
   private def wrongFormat(char: Char, at: Cursor, in: ParseInput) =
-    ParseError.BadFileFormat(s"Unexpected symbol at line=${at.line}, col=${at.column}, symbol=$char", in.file)
+    ParseError.BadFileFormat(s"Unexpected symbol at line=${at.line}, col=${at.column}, symbol='$char'", in.file)
 
   private def unexpectedParserState(at: Cursor, in: ParseInput) =
     ParseError.BadFileFormat(s"Something wrong near line=${at.line}, col=${at.column}", in.file)
