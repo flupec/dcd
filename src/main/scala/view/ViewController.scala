@@ -6,6 +6,9 @@ import tui.crossterm.CrosstermJni
 import tui.crossterm.Event
 import tui.crossterm.KeyCode
 import com.typesafe.scalalogging.Logger
+import tui.Layout
+import tui.Direction.Vertical
+import tui.Constraint
 
 /** Controller for multiple views, handles input, focuses etc
   *
@@ -13,6 +16,7 @@ import com.typesafe.scalalogging.Logger
   */
 class ViewController(
     private var main: TuiView,
+    private val logbar: LogView,
     val log: Logger = Logger(classOf[ViewController])
 ) extends TuiView:
 
@@ -26,7 +30,14 @@ class ViewController(
     main = main.handledKeyboard(key)
     this
 
-  override def render(frame: Frame, at: Rect): Unit = main.render(frame, at)
+  override def render(frame: Frame, at: Rect): Unit =
+    val layout = Layout(
+      direction = Vertical,
+      constraints = Array(Constraint.Percentage(90), Constraint.Percentage(10))
+    )
+    val chunks = layout.split(at)
+    main.render(frame, chunks(0))
+    logbar.render(frame, chunks(1))
 
 object ViewController:
-  def apply(view: NumeratedListView) = new ViewController(view)
+  def apply(view: NumeratedListView, logbar: LogView) = new ViewController(view, logbar)

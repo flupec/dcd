@@ -2,6 +2,8 @@ package view
 
 import munit.FunSuite
 
+import common.*
+
 class NumerationTest extends FunSuite:
   test("Next numeration for empty should return empty numeration"):
     assert(next(List.empty).isEmpty)

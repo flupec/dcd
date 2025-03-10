@@ -49,7 +49,7 @@ object Parser:
         case Right(r, c, s) => doParse(in, r, c, s)
 
 // Parser states for .dcd file format
-enum DcdParser:
+enum DcdParser derives CanEqual:
   case Empty
   case Setting(val key: Readable, val value: Readable)
   case CompetencyHeader(val numeration: ReadableNumber, val name: Readable)

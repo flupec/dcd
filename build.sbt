@@ -4,7 +4,8 @@ scalacOptions ++= Seq(
   "-Xlint:unused",
   "-Xlint:infer-any",
   "-Wunused:linted",
-  "-unchecked"
+  "-unchecked",
+  "-language:strictEquality"
 )
 
 lazy val root = project

@@ -28,7 +28,7 @@ object ParseInput:
 case class Cursor(
     val line: Int,
     val column: Int
-):
+) derives CanEqual:
   def next(in: ParseInput): Cursor =
     if !lineExists(line, in) then return Cursor.EOF
     val (nextLine, nextColumn) =
