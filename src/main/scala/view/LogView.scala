@@ -1,6 +1,7 @@
 package view
 
 import tui.Alignment
+import tui.Borders
 import tui.Frame
 import tui.Rect
 import tui.Span
@@ -8,6 +9,7 @@ import tui.Spans
 import tui.Text
 import tui.crossterm.KeyCode
 import tui.widgets.BlockWidget
+import tui.widgets.BlockWidget.BorderType
 import tui.widgets.ParagraphWidget
 import tui.widgets.ParagraphWidget.Wrap
 
@@ -23,8 +25,19 @@ class LogView(
     // TODO clean logs after certain time period
     // TODO maybe introduce tick method to TuiView?
     val logsTxt = logs.map(log => Spans.from(Span.nostyle(log)))
-    val widget = ParagraphWidget(text = Text(logsTxt.toArray), alignment = Alignment.Center)
+    val widgetBlock =
+      BlockWidget(
+        title = Some(Spans.nostyle("Logs")),
+        borders = Borders.ALL,
+        borderType = BorderType.Rounded
+      )
+    val widget = ParagraphWidget(
+      text = Text(logsTxt.toArray),
+      alignment = Alignment.Center,
+      block = Some(widgetBlock)
+    )
     frame.renderWidget(widget, at)
+  end render
 
   def updateLogs(msg: String): Unit = logs = logs appended msg
 

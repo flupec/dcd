@@ -19,6 +19,7 @@ import tui.Text
 import tui.Widget
 import tui.crossterm.KeyCode
 import tui.widgets.BlockWidget
+import tui.widgets.BlockWidget.BorderType
 import tui.widgets.ListWidget
 import tui.widgets.ParagraphWidget
 import view.CompetenciesView.Focus
@@ -153,16 +154,21 @@ class CompetenciesView private (
   private def renderCompetencies(frame: Frame, at: Rect) =
     val chunks: Array[Rect] = competenciesLayout.split(at)
     require(chunks.size == maxNestLevel + 1, s"Chunks size=${chunks.size}, maxNestLevel=${state.nestLevel}")
-    val competencyKnowledges = cntrl.computedKnowledges
 
     // TODO Ideally, we should render only 3 levels: previous, current and last, and use special symbols to show that
     // you can go lower / higher in the hierarchy. If we don't do this, then with a large nesting of competencies, the
     // render will be broken, all competencies will be cut off by the composer
-    for level <- 0 to maxNestLevel do renderCompetencyLevel(frame, chunks(level), level, competencyKnowledges)
+    for level <- 0 to maxNestLevel do
+      val borders = level match
+        case 0                          => Borders.LEFT | Borders.TOP | Borders.BOTTOM
+        case lvl if lvl == maxNestLevel => Borders.RIGHT | Borders.TOP | Borders.BOTTOM
+        case _                          => Borders.TOP | Borders.BOTTOM
+      renderCompetencyLevel(frame, chunks(level), borders, level, cntrl.computedKnowledges)
 
   private def renderCompetencyLevel(
       frame: Frame,
       at: Rect,
+      borders: Borders,
       nestLevel: Int,
       knowledges: Map[Numeration, KnowledgeComputed]
   ) =
@@ -170,7 +176,11 @@ class CompetenciesView private (
       .map(c => competencyListItem(c, nestLevel, knowledges get c.numeration, at))
       .toArray
 
-    val widget = ListWidget(items = competenciesToRender)
+    val widgetTitle = if nestLevel == 0 then Some(Spans.nostyle("Competencies")) else None
+    val widget = ListWidget(
+      items = competenciesToRender,
+      block = Some(BlockWidget(borders = borders, title = widgetTitle))
+    )
     frame.renderWidget(widget, at)
 
   private def competencyListItem(
@@ -206,12 +216,13 @@ class CompetenciesView private (
 
   private def renderQA(frame: Frame, at: Rect) =
     val allQA = currentCompetency.questions
-    val widget = ListWidget(items =
-      (0 until allQA.size)
-        .map(idx => allQA(idx) -> idx)
-        .map((qa, qaIdx) => qaListItem(qa, qaIdx, at))
-        .toArray
-    )
+    val qaItems = (0 until allQA.size)
+      .map(idx => allQA(idx) -> idx)
+      .map((qa, qaIdx) => qaListItem(qa, qaIdx, at))
+      .toArray
+    val widgetTitle = Some(Spans.nostyle("QAs"))
+    val widgetBlock = Some(BlockWidget(borders = Borders.ALL, borderType = BorderType.Rounded, title = widgetTitle))
+    val widget = ListWidget(items = qaItems, block = widgetBlock)
     frame.renderWidget(widget, at)
 
   private def qaListItem(qa: QA, qaIdx: Int, at: Rect): ListWidget.Item =
@@ -321,6 +332,7 @@ object CompetenciesView:
   def computeLayout(competencies: Seq[CompetencyView], maxNestLevel: Int): Layout =
     require(maxNestLevel >= 0)
 
+    val estimateMargin = 5
     val gap = 2
     val fallbackMinW = 40 + gap
 
@@ -331,7 +343,7 @@ object CompetenciesView:
           .map(_.size)
           .maxOption
           .getOrElse(fallbackMinW)
-        Constraint.Min(headerMinW + gap)
+        Constraint.Min(headerMinW + gap + estimateMargin)
     )
     Layout(Horizontal, constraints = competenciesConstraints)
 
