@@ -38,12 +38,12 @@ class CompetenciesView private (
     val show: MessageShow
 ) extends TuiView:
 
-  override def handledKeyboard(key: KeyCode): CompetenciesView = state.focused match
-    case Focus.Competencies => handledCompetenciesInput(key)
-    case Focus.QAs          => handledQAsInput(key)
+  override def handledKeyboard(key: KeyCode): Option[CompetenciesView] = state.focused match
+    case Focus.Competencies => Some(handledCompetenciesInput(key))
+    case Focus.QAs          => Some(handledQAsInput(key))
     case Popup(kind, _) =>
       kind match
-        case PopupType.CompetencyEstimate => handledCompetencyEstimationInput(key)
+        case PopupType.CompetencyEstimate => Some(handledCompetencyEstimationInput(key))
 
   private def handledCompetenciesInput(key: KeyCode): CompetenciesView =
     key match
@@ -64,10 +64,6 @@ class CompetenciesView private (
       // Tab key changes focus
       case _: KeyCode.Tab => focusChanged(Focus.QAs)
 
-      // Exit
-      case char: KeyCode.Char if char.c() == 'q' =>
-        System.exit(0)
-        this
       case _ => this
 
   private def childCompetencySelected: Option[CompetenciesView] =
@@ -118,10 +114,6 @@ class CompetenciesView private (
       // Tab key changes focus
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
 
-      // Exit
-      case char: KeyCode.Char if char.c() == 'q' =>
-        System.exit(0)
-        this
       case _ => this
 
   private def nextQASelected: Option[CompetenciesView] =
@@ -270,11 +262,6 @@ class CompetenciesView private (
 
       // Abort
       case _: KeyCode.Esc => focusChanged(Focus.Competencies)
-
-      // Exit
-      case char: KeyCode.Char if char.c() == 'q' =>
-        System.exit(0)
-        this
 
       // Input symbols
       case symb: KeyCode.Char =>

@@ -16,7 +16,7 @@ import tui.widgets.ParagraphWidget.Wrap
 class LogView(
     var logs: Seq[String] = Vector.empty
 ) extends TuiView:
-  override def handledKeyboard(key: KeyCode): TuiView = this
+  override def handledKeyboard(key: KeyCode): Option[TuiView] = Some(this)
 
   override def render(frame: Frame, at: Rect): Unit =
     // Drop outdated logs

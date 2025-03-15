@@ -43,7 +43,8 @@ private def getCliArg[A](key: String, args: List[String])(using
 given CommandLineParser.FromString[Path] with
   def fromString(s: String): Path = Path.of(s)
 
-private def appLoop(viewCntrl: ViewController)(jni: CrosstermJni, terminal: Terminal) =
+private def appLoop(viewCntrl: ViewController)(jni: CrosstermJni, terminal: Terminal): Unit =
   while true do
-    viewCntrl.handleInput(jni)
-    terminal.draw(frame => viewCntrl.render(frame, frame.size))
+    val mustContinue = viewCntrl.handleInput(jni)
+    if mustContinue then terminal.draw(frame => viewCntrl.render(frame, frame.size))
+    else return

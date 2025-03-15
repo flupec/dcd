@@ -1,14 +1,14 @@
 package view
 
+import com.typesafe.scalalogging.Logger
+import tui.Constraint
+import tui.Direction.Vertical
 import tui.Frame
+import tui.Layout
 import tui.Rect
 import tui.crossterm.CrosstermJni
 import tui.crossterm.Event
 import tui.crossterm.KeyCode
-import com.typesafe.scalalogging.Logger
-import tui.Layout
-import tui.Direction.Vertical
-import tui.Constraint
 
 /** Controller for multiple views, handles input, focuses etc
   *
@@ -20,15 +20,27 @@ class ViewController(
     val log: Logger = Logger(classOf[ViewController])
 ) extends TuiView:
 
-  def handleInput(jni: CrosstermJni) =
-    if jni.poll(tui.crossterm.Duration(0, 1000)) then
-      jni.read() match
-        case key: Event.Key => handledKeyboard(key.keyEvent().code())
-        case _              => ()
+  /* Returns true if session must continue. Returns false if user want to exit from application */
+  def handleInput(jni: CrosstermJni): Boolean =
+    val hasNewEvents = jni.poll(tui.crossterm.Duration(0, 250))
+    if !hasNewEvents then return true
 
-  override def handledKeyboard(key: KeyCode): TuiView =
-    main = main.handledKeyboard(key)
-    this
+    jni.read match
+      case quit: Event.Key if isQuitEvent(quit) => false
+      case key: Event.Key                       => handledKeyboard(key.keyEvent.code).isDefined
+      case _                                    => true
+
+  private def isQuitEvent(e: Event.Key): Boolean =
+    e.keyEvent.code match
+      case c: KeyCode.Char => c.c == 'q'
+      case _               => false
+
+  override def handledKeyboard(key: KeyCode): Option[TuiView] =
+    main.handledKeyboard(key) match
+      case None => None
+      case Some(updatedMain) =>
+        main = updatedMain
+        Some(this)
 
   override def render(frame: Frame, at: Rect): Unit =
     val layout = Layout(
