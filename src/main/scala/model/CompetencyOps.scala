@@ -1,6 +1,7 @@
 package model
 
 import common.Numeration
+import common.isChildOf
 
 type Updater = (Competency) => Competency
 type Filter = (Competency) => Boolean
@@ -58,7 +59,7 @@ def computeKnowledge(c: Competency): Map[Numeration, KnowledgeComputed] =
   val qaKnowl = computeQAKnowledge(c)
 
   // If formed by QA knowledge or competency not estimated, then we must sum curr knowledge with sub knowledges
-  // Otherwise, force set curr knowledge
+  // Otherwise, force set curr knowledge (ignore child and qa knowledges)
   val (currKnowledge, forceSet) = (competencyEstim, qaKnowl) match
     // Сurr estimate takes precedence over qa estimates and sub estimates
     case (curr @ Some(_), _) => (curr, true)
@@ -67,7 +68,11 @@ def computeKnowledge(c: Competency): Map[Numeration, KnowledgeComputed] =
     // Curr estimate is formed by sub estimates
     case (None, None) => (None, false)
 
-  if forceSet then return sub + (c.numeration -> currKnowledge.get) // Force set
+  if forceSet then
+    // Mark childs as overriden by parent knowledge
+    // TODO later we need to mark qaKnowl as overriden too. Introduce KnowledgeComputedTarget in KnowledgeComputed (see TODO there!)
+    val subOverriden = sub.filterKeys(_.isChildOf(c.numeration)).mapValues(_.markOverriden(currKnowledge.get)).toMap
+    return subOverriden + (c.numeration -> currKnowledge.get)
 
   // Collect child knowledges
   val sum = KnowledgeComputed.summarizer(c.numeration)

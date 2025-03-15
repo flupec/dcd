@@ -40,5 +40,4 @@ object NumerationOrdering extends Ordering[Numeration]:
     // Stupid but easy solution
     val stringify = (n: Numeration) =>
       n.map(_.toString).reduceLeft((l, r) => l.concat(r))
-
     stringify(x).compare(stringify(y))

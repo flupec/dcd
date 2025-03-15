@@ -46,7 +46,7 @@ class CompetencyOpsTest extends FunSuite:
       assert(updated.head.qa.size == qa.size)
       assert(updated.head.qa.forall(q => q.knowledgeTest == knowledge)) // not changed
 
-  test("Compute knowledge should return no knowledge when all estimates si not mentioned"):
+  test("Compute knowledge should return no knowledge when all estimates is not mentioned"):
     val c = competency(List(1))
     assert(computeKnowledge(c).isEmpty)
 
@@ -90,7 +90,7 @@ class CompetencyOpsTest extends FunSuite:
     assertEquals(k.maxPoints, 1f)
     assertEquals(k.receivedPoints, competencyEstimate.percent / 100f)
 
-  test("Compute knowledge should return child knowledges"):
+  test("Compute knowledge should return child and parent knowledges"):
     lazy val childEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
     lazy val child = competency(List(1, 1), childEstimate)
     val parentEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(50)
@@ -108,6 +108,49 @@ class CompetencyOpsTest extends FunSuite:
     val gotParent = knowledges(parent.numeration)
     assertEquals(gotParent.maxPoints, 1f) // Force set
     assertEquals(gotParent.receivedPoints, parentEstimate.percent / 100f) // Force set
+
+  test("Compute knowledge should return knowledges with marked childs as overriden when parent estimate presents"):
+    lazy val childEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
+    lazy val child = competency(List(1, 1), childEstimate)
+    val parentEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(50)
+    val parent = competency(List(1), parentEstimate).copy(childs = List(child))
+    val knowledges = computeKnowledge(parent)
+
+    assert(knowledges.nonEmpty)
+    assert(knowledges.contains(parent.numeration))
+    assert(knowledges.contains(child.numeration))
+
+    val gotChild = knowledges(child.numeration)
+    assert(gotChild.overridenBy.isDefined)
+    assertEquals(gotChild.overridenBy.get.numeration, parent.numeration)
+
+    val gotParent = knowledges(parent.numeration)
+    assert(gotParent.overridenBy.isEmpty)
+
+  test("Compute knowledge should return knowledges with marked correctly childs as overriden for transitive childs"):
+    lazy val lowEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
+    lazy val low = competency(List(1, 1, 1), lowEstimate)
+    lazy val middleEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(75)
+    lazy val middle = competency(List(1, 1), middleEstimate).copy(childs = List(low))
+    val topEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(50)
+    val top = competency(List(1), topEstimate).copy(childs = List(middle))
+    val knowledges = computeKnowledge(top)
+
+    assert(knowledges.nonEmpty)
+    assert(knowledges.contains(top.numeration))
+    assert(knowledges.contains(low.numeration))
+    assert(knowledges.contains(middle.numeration))
+
+    val gotLow = knowledges(low.numeration)
+    assert(gotLow.overridenBy.isDefined)
+    assertEquals(gotLow.overridenBy.get.numeration, top.numeration)
+
+    val gotMiddle = knowledges(middle.numeration)
+    assert(gotMiddle.overridenBy.isDefined)
+    assertEquals(gotMiddle.overridenBy.get.numeration, top.numeration)
+
+    val gotTop = knowledges(top.numeration)
+    assert(gotTop.overridenBy.isEmpty)
 
   test("Compute knowledge should summarized child knowledges when parent knowledge estimate not present"):
     lazy val child1Estimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)

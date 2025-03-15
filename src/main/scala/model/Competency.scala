@@ -52,13 +52,16 @@ enum KnowledgeEstimate derives CanEqual:
   // Will be used at knowledge computation
   case Answered(val percent: Int)
 
+// TODO introduce KnowledgeComputedTarget with variants Competency(numeration) and QA(numeration, idx)
 class KnowledgeComputed(
     // Numeration of competency knowledge
     val numeration: Numeration,
     // Maximum points possible points for this competency (sum of childs maxPoints and this competency qa maxPoints)
     val maxPoints: Float,
     // Actually received points
-    val receivedPoints: Float
+    val receivedPoints: Float,
+    // If computation overriden by parent, then this will be non empty
+    val overridenBy: Option[KnowledgeComputed] = None
 ) derives CanEqual:
   require(maxPoints > 0f, "maxPoints less or equal to zero")
   require(receivedPoints >= 0f, "received points less zero")
@@ -69,7 +72,19 @@ class KnowledgeComputed(
 
   override def hashCode(): Int = numeration.hashCode()
 
-  def copy(numeration: Numeration = numeration) = KnowledgeComputed(numeration, maxPoints, receivedPoints)
+  def copy(
+      numeration: Numeration = numeration,
+      overridenBy: Option[KnowledgeComputed] = overridenBy
+  ) = KnowledgeComputed(numeration, maxPoints, receivedPoints, overridenBy)
+
+  /** Maintains invariant:
+    *    if `a` overrides `b` and `b` overrides `this`, then `a` overrides `this`.
+    *    And we must give preference for `overridenBy` field to highest ancestor (`a` in the example above)
+    */
+  def markOverriden(by: KnowledgeComputed): KnowledgeComputed = overridenBy match
+    case None                                                                     => copy(overridenBy = Some(by))
+    case Some(currOverriden) if currOverriden.numeration.isChildOf(by.numeration) => copy(overridenBy = Some(by))
+    case Some(currOVerriden)                                                      => this
 
 object KnowledgeComputed:
   /** Sum knowledges and sets numeration for summary knowledge */
