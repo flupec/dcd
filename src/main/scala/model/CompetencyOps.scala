@@ -70,7 +70,6 @@ def computeKnowledge(c: Competency): Map[Numeration, KnowledgeComputed] =
 
   if forceSet then
     // Mark childs as overriden by parent knowledge
-    // TODO later we need to mark qaKnowl as overriden too. Introduce KnowledgeComputedTarget in KnowledgeComputed (see TODO there!)
     val subOverriden = sub.filterKeys(_.isChildOf(c.numeration)).mapValues(_.markOverriden(currKnowledge.get)).toMap
     return subOverriden + (c.numeration -> currKnowledge.get)
 

@@ -52,7 +52,7 @@ enum KnowledgeEstimate derives CanEqual:
   // Will be used at knowledge computation
   case Answered(val percent: Int)
 
-// TODO introduce KnowledgeComputedTarget with variants Competency(numeration) and QA(numeration, idx)
+// Meaningful only for competencies
 class KnowledgeComputed(
     // Numeration of competency knowledge
     val numeration: Numeration,
