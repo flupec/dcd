@@ -58,10 +58,13 @@ class KnowledgeComputed(
     val numeration: Numeration,
     // Maximum points possible points for this competency (sum of childs maxPoints and this competency qa maxPoints)
     val maxPoints: Float,
-    // Actually received points
+    // Computed received points
     val receivedPoints: Float,
     // If computation overriden by parent, then this will be non empty
-    val overridenBy: Option[KnowledgeComputed] = None
+    val overridenBy: Option[KnowledgeComputed] = None,
+    // If true, then received points computed only from child competencies. False for estimated competencies or it's qa
+    // plus child competencies
+    val synthetic: Boolean = false
 ) derives CanEqual:
   require(maxPoints > 0f, "maxPoints less or equal to zero")
   require(receivedPoints >= 0f, "received points less zero")
@@ -74,8 +77,9 @@ class KnowledgeComputed(
 
   def copy(
       numeration: Numeration = numeration,
-      overridenBy: Option[KnowledgeComputed] = overridenBy
-  ) = KnowledgeComputed(numeration, maxPoints, receivedPoints, overridenBy)
+      overridenBy: Option[KnowledgeComputed] = overridenBy,
+      synthetic: Boolean = synthetic
+  ) = KnowledgeComputed(numeration, maxPoints, receivedPoints, overridenBy, synthetic)
 
   /** Maintains invariant:
     *    if `a` overrides `b` and `b` overrides `this`, then `a` overrides `this`.
@@ -85,6 +89,8 @@ class KnowledgeComputed(
     case None                                                                     => copy(overridenBy = Some(by))
     case Some(currOverriden) if currOverriden.numeration.isChildOf(by.numeration) => copy(overridenBy = Some(by))
     case Some(currOVerriden)                                                      => this
+
+  def asSynthetic: KnowledgeComputed = copy(synthetic = true)
 
 object KnowledgeComputed:
   /** Sum knowledges and sets numeration for summary knowledge */

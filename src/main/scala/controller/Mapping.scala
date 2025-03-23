@@ -31,5 +31,5 @@ private def toViewCompleteness(e: model.KnowledgeEstimate): view.KnowledgeComple
   case model.KnowledgeEstimate.Answered(percent)                 => view.KnowledgeCompleteness.Answered(percent)
 
 def toKnowledgeComputedView(kc: model.KnowledgeComputed): view.KnowledgeComputed =
-  if kc.maxPoints == 0f then view.KnowledgeComputed(0)
-  else view.KnowledgeComputed((kc.receivedPoints / kc.maxPoints * 100f).toInt)
+  if kc.maxPoints == 0f then view.KnowledgeComputed(0, kc.overridenBy.map(_.numeration))
+  else view.KnowledgeComputed((kc.receivedPoints / kc.maxPoints * 100f).toInt, kc.overridenBy.map(_.numeration))

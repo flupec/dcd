@@ -60,6 +60,7 @@ class CompetencyOpsTest extends FunSuite:
     val k = knowledges(c.numeration)
     assertEquals(k.maxPoints, 1f)
     assertEquals(k.receivedPoints, estimate.percent / 100f)
+    assertEquals(k.synthetic, false)
 
   test("Compute knowledge should return knowledge from qa estimates when competency knowledge not estimated"):
     val qaEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
@@ -74,6 +75,7 @@ class CompetencyOpsTest extends FunSuite:
     val k = knowledges(c.numeration)
     assertEquals(k.maxPoints, qa.knowledgeTest.maxPoints)
     assertEquals(k.receivedPoints, qa.knowledgeTest.maxPoints * qaEstimate.percent / 100f)
+    assertEquals(k.synthetic, false)
 
   test("Compute knowledge should return knowledge from competency estimate when qa estimates presents too"):
     val qaEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
@@ -89,6 +91,7 @@ class CompetencyOpsTest extends FunSuite:
     val k = knowledges(c.numeration)
     assertEquals(k.maxPoints, 1f)
     assertEquals(k.receivedPoints, competencyEstimate.percent / 100f)
+    assertEquals(k.synthetic, false)
 
   test("Compute knowledge should return child and parent knowledges"):
     lazy val childEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
@@ -152,7 +155,7 @@ class CompetencyOpsTest extends FunSuite:
     val gotTop = knowledges(top.numeration)
     assert(gotTop.overridenBy.isEmpty)
 
-  test("Compute knowledge should summarized child knowledges when parent knowledge estimate not present"):
+  test("Compute knowledge should return summarized child knowledges when parent knowledge estimate not present"):
     lazy val child1Estimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
     lazy val child1 = competency(List(1, 1), child1Estimate)
     lazy val child2Estimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(50)
@@ -172,7 +175,8 @@ class CompetencyOpsTest extends FunSuite:
       .map(c => c.estimate)
       .collect(_ match { case KnowledgeEstimate.Answered(percent) => percent })
       .sum / 100f
-    assertEquals(k.receivedPoints, expectedPoints) // Force set
+    assertEquals(k.receivedPoints, expectedPoints)
+    assertEquals(k.synthetic, true)
 
   test("Compute knowledge should return knowledge from qa and childs when parent competency knowledge not estimated"):
     val qaEstimate: KnowledgeEstimate.Answered = KnowledgeEstimate.Answered(25)
@@ -194,6 +198,7 @@ class CompetencyOpsTest extends FunSuite:
       k.receivedPoints,
       qa.knowledgeTest.maxPoints * qaEstimate.percent / 100f + childEstimate.percent / 100f
     )
+    assertEquals(k.synthetic, false)
 
   private def competency(n: Numeration): Competency = competency(n, KnowledgeEstimate.NotMentioned)
 

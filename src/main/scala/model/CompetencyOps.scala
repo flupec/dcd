@@ -82,7 +82,7 @@ def computeKnowledge(c: Competency): Map[Numeration, KnowledgeComputed] =
 
   val resultKnowl = (currKnowledge, childKnowl) match
     case (Some(parent), Some(child)) => Some(sum(parent, child))
-    case (None, child @ Some(_))     => child
+    case (None, Some(child))         => Some(child.asSynthetic) // Competency formed only from child estimates
     case (parent @ Some(_), None)    => parent
     case (None, None)                => None
   resultKnowl.map(kc => sub + (c.numeration -> kc)).getOrElse(sub)

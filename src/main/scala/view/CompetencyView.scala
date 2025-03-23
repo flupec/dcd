@@ -32,4 +32,4 @@ enum KnowledgeCompleteness derives CanEqual:
   case Answered(val percent: Int)
   case Unanswered
 
-case class KnowledgeComputed(percent: Int)
+case class KnowledgeComputed(percent: Int, overridenBy: Option[Numeration])
