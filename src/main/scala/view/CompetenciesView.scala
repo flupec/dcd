@@ -165,7 +165,7 @@ class CompetenciesView private (
       knowledges: Map[Numeration, KnowledgeComputed]
   ) =
     val competenciesToRender: Array[ListWidget.Item] = toRenderCompetencies(nestLevel)
-      .map(c => competencyListItem(c, nestLevel, knowledges get c.numeration, at))
+      .map(c => competencyListItem(c, nestLevel, knowledges, at))
       .toArray
 
     val widgetTitle = if nestLevel == 0 then Some(Spans.nostyle("Competencies")) else None
@@ -178,13 +178,13 @@ class CompetenciesView private (
   private def competencyListItem(
       c: CompetencyView,
       nestLevel: Int,
-      knowledge: Option[KnowledgeComputed],
+      knowledges: Map[Numeration, KnowledgeComputed],
       at: Rect
   ): ListWidget.Item =
     val selectedStyle =
       if state.focused == Focus.Competencies && state.selected.competency == c.numeration then SelectedItemStyle
       else Style.DEFAULT
-    val header = Span.styled(CompetenciesView.competencyHeaderText(c, knowledge), selectedStyle).bounded(at)
+    val header = Span.styled(CompetenciesView.competencyHeaderText(c, knowledges), selectedStyle).bounded(at)
     ListWidget.Item(content = header)
 
   private def competenciesAtLevel(level: Int): Seq[CompetencyView] =
@@ -265,19 +265,28 @@ class CompetenciesView private (
 
       // Input symbols
       case symb: KeyCode.Char =>
-        // TODO maybe validate here to discard non-digit symbols ?
-        focusChanged(Focus.Popup(focus.kind, focus.input + symb.c()))
+        onlyDigitsValidator(String.valueOf(symb.c)) match
+          // Incorrect input. TODO render error message
+          case Left(err) => focusChanged(Focus.Competencies)
+          // OK, add symbol to input
+          case Right(_) => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
+
+      // Delete one input symbol
+      case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
 
       // Submit input
       case _: KeyCode.Enter =>
-        // Validate
-        // If validation fails then render error message
-        // If validation ok then estimate competency
-        val estimation = KnowledgeCompleteness.Answered(focus.input.toInt)
-        cntrl.estimatedCompetency(state.selected.competency, estimation)
-        focusChanged(Focus.Competencies)
+        numRangeValidator(0, 100)(focus.input) match
+          // Incorrect input. TODO render error message
+          case Left(err) => focusChanged(Focus.Competencies)
+          // OK, estimate competency
+          case Right(_) =>
+            val estimation = KnowledgeCompleteness.Answered(focus.input.toInt)
+            cntrl.estimatedCompetency(state.selected.competency, estimation)
+            focusChanged(Focus.Competencies)
 
       case _ => this
+  end handledCompetencyEstimationInput
 
   private def currentCompetency: CompetencyView =
     cntrl.competencies.find(c => c.numeration == state.selected.competency).get
@@ -287,10 +296,17 @@ object CompetenciesView:
 
   private val SelectedItemStyle: Style = Style(addModifier = Modifier.BOLD, bg = Some(Color.White))
 
-  def competencyHeaderText(c: CompetencyView, k: Option[KnowledgeComputed]): String =
-    val knowledgePart = k match
-      case None            => ""
-      case Some(knowledge) => s"(${knowledge.percent})"
+  def competencyHeaderText(c: CompetencyView, knowledges: Map[Numeration, KnowledgeComputed]): String =
+    val knowledgePart = knowledges get c.numeration match
+      case None => "(?)"
+      case Some(knowledge) =>
+        knowledge.overridenBy match
+          // Not overriden but synthetic, show percent with inherited mark
+          case None if knowledge.synthetic => s"(${knowledge.percent}) →"
+          // Not overriden, just show percent
+          case None => s"(${knowledge.percent})"
+          // Overriden, show percent with overriden mark
+          case Some(_) => s"(← ${knowledge.percent})"
 
     s"${c.numerationView} : ${c.name} $knowledgePart"
 
@@ -319,14 +335,14 @@ object CompetenciesView:
   def computeLayout(competencies: Seq[CompetencyView], maxNestLevel: Int): Layout =
     require(maxNestLevel >= 0)
 
-    val estimateMargin = 5
+    val estimateMargin = 7
     val gap = 2
     val fallbackMinW = 40 + gap
 
     val competenciesConstraints: Array[Constraint] = Array.from(
       for lvl <- 0 to maxNestLevel yield
         val headerMinW = competenciesAtLevel(competencies, lvl)
-          .map(c => competencyHeaderText(c, None))
+          .map(c => competencyHeaderText(c, Map.empty))
           .map(_.size)
           .maxOption
           .getOrElse(fallbackMinW)
