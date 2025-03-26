@@ -22,8 +22,8 @@ private def toCompetencyView(src: model.Competency): Seq[view.CompetencyView] =
       notes = src.notes
     )
 
-private def toViewQA(src: Seq[model.QA]): Seq[view.QA] =
-  src.map(q => view.QA(questionBody = q.question, answerBody = q.answer))
+private def toViewQA(src: Seq[model.QA]): Seq[view.QA] = src.map: q =>
+  view.QA(questionBody = q.question, answerBody = q.answer, status = toViewCompleteness(q.knowledgeTest.estimate))
 
 private def toViewCompleteness(e: model.KnowledgeEstimate): view.KnowledgeCompleteness = e match
   case model.KnowledgeEstimate.NotMentioned                      => view.KnowledgeCompleteness.NotMentioned

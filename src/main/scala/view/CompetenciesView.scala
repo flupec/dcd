@@ -44,6 +44,7 @@ class CompetenciesView private (
     case Popup(kind, _) =>
       kind match
         case PopupType.CompetencyEstimate => Some(handledCompetencyEstimationInput(key))
+        case PopupType.QAsEstimate        => Some(handledQAsEstimationInput(key))
 
   private def handledCompetenciesInput(key: KeyCode): CompetenciesView =
     key match
@@ -65,6 +66,7 @@ class CompetenciesView private (
       case _: KeyCode.Tab => focusChanged(Focus.QAs)
 
       case _ => this
+  end handledCompetenciesInput
 
   private def childCompetencySelected: Option[CompetenciesView] =
     val childs = childCompetencies
@@ -110,6 +112,9 @@ class CompetenciesView private (
       // Arrows
       case _: KeyCode.Up   => prevQASelected.getOrElse(this)
       case _: KeyCode.Down => nextQASelected.getOrElse(this)
+
+      // Open popup input for QA estimation, just change focus
+      case _: KeyCode.Enter => focusChanged(Focus.Popup(PopupType.QAsEstimate))
 
       // Tab key changes focus
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
@@ -234,17 +239,22 @@ class CompetenciesView private (
     val widget: Option[Widget] = activePopup.map: popup =>
       popup.kind match
         case PopupType.CompetencyEstimate => popupCompetencyEstimateWidget(popup)
+        case PopupType.QAsEstimate        => popupQAEstimateWidget(popup)
 
     widget match
       case Some(popupWidget) => frame.renderWidget(popupWidget, at)
       case None              => ()
 
-  private def popupCompetencyEstimateWidget(popup: Popup) =
-    val title = Spans.nostyle("Competency estimation")
+  private def popupEstimateWidget(popup: Popup, title: String): ParagraphWidget =
+    val titleTxt = Spans.nostyle(title)
     val txt = popup.input
-    val border = BlockWidget(title = Some(title), titleAlignment = Alignment.Center, borders = Borders.ALL)
+    val border = BlockWidget(title = Some(titleTxt), titleAlignment = Alignment.Center, borders = Borders.ALL)
     val paragraph = Array(Spans.from(Span.nostyle("Enter competency estimation:")), Spans.nostyle(txt))
     ParagraphWidget(text = Text(paragraph), block = Some(border), alignment = Alignment.Center)
+
+  private def popupCompetencyEstimateWidget(popup: Popup) = popupEstimateWidget(popup, "Competencies estimate")
+
+  private def popupQAEstimateWidget(popup: Popup) = popupEstimateWidget(popup, "QA estimate")
 
   private def popupRect(window: Rect): Rect =
     val (centerx, centery) = (window.width / 2, window.height / 2)
@@ -256,18 +266,30 @@ class CompetenciesView private (
       height = ysize
     )
 
-  private def handledCompetencyEstimationInput(key: KeyCode): CompetenciesView =
+  private def handledCompetencyEstimationInput(key: KeyCode) =
+    handleEstimationPopupInput(key, Focus.Competencies, submitCompetencyEstimate)
+
+  private def submitCompetencyEstimate(input: String): CompetenciesView =
+    val estimation = KnowledgeCompleteness.Answered(input.toInt)
+    cntrl.estimatedCompetency(state.selected.competency, estimation)
+    focusChanged(Focus.Competencies)
+
+  private def handleEstimationPopupInput(
+      key: KeyCode,
+      focusOnClose: Focus,
+      onInputSubmit: String => CompetenciesView
+  ): CompetenciesView =
     val focus = state.focused.asInstanceOf[Focus.Popup]
     key match
 
       // Abort
-      case _: KeyCode.Esc => focusChanged(Focus.Competencies)
+      case _: KeyCode.Esc => focusChanged(focusOnClose)
 
       // Input symbols
       case symb: KeyCode.Char =>
         onlyDigitsValidator(String.valueOf(symb.c)) match
           // Incorrect input. TODO render error message
-          case Left(err) => focusChanged(Focus.Competencies)
+          case Left(err) => focusChanged(focusOnClose)
           // OK, add symbol to input
           case Right(_) => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
@@ -278,15 +300,21 @@ class CompetenciesView private (
       case _: KeyCode.Enter =>
         numRangeValidator(0, 100)(focus.input) match
           // Incorrect input. TODO render error message
-          case Left(err) => focusChanged(Focus.Competencies)
+          case Left(err) => focusChanged(focusOnClose)
           // OK, estimate competency
-          case Right(_) =>
-            val estimation = KnowledgeCompleteness.Answered(focus.input.toInt)
-            cntrl.estimatedCompetency(state.selected.competency, estimation)
-            focusChanged(Focus.Competencies)
+          case Right(input) => onInputSubmit(input)
 
       case _ => this
-  end handledCompetencyEstimationInput
+  end handleEstimationPopupInput
+
+  private def handledQAsEstimationInput(key: KeyCode) = handleEstimationPopupInput(key, Focus.QAs, submitQaEstimate)
+
+  private def submitQaEstimate(input: String): CompetenciesView = state.selected.qaIndex
+    .map: qa =>
+      val estimation = KnowledgeCompleteness.Answered(input.toInt)
+      cntrl.estimatedQA(state.selected.competency, qa, estimation)
+      focusChanged(Focus.QAs)
+    .getOrElse(this)
 
   private def currentCompetency: CompetencyView =
     cntrl.competencies.find(c => c.numeration == state.selected.competency).get
@@ -309,6 +337,7 @@ object CompetenciesView:
           case Some(_) => s"(← ${knowledge.percent})"
 
     s"${c.numerationView} : ${c.name} $knowledgePart"
+  end competencyHeaderText
 
   def competenciesAtLevel(all: Seq[CompetencyView], level: Int): Seq[CompetencyView] = all
     .filter(c => c.numeration.size == level + 1)
@@ -349,6 +378,7 @@ object CompetenciesView:
         Constraint.Min(headerMinW + gap + estimateMargin)
     )
     Layout(Horizontal, constraints = competenciesConstraints)
+  end computeLayout
 
   case class ViewState(
       // Current selected items
@@ -391,3 +421,4 @@ object CompetenciesView:
 
   enum PopupType derives CanEqual:
     case CompetencyEstimate
+    case QAsEstimate
