@@ -25,10 +25,14 @@ import tui.widgets.ParagraphWidget
 import view.CompetenciesView.Focus
 import view.CompetenciesView.Focus.Popup
 import view.CompetenciesView.PopupType
-import view.CompetenciesView.SelectedItemStyle
 import view.CompetenciesView.ViewState
 
 val log: Logger = Logger(classOf[CompetenciesView])
+
+private val SelectedItemStyle: Style = Style(bg = Some(Color.White))
+private val CrossedItemStyle: Style = Style(addModifier = Modifier.CROSSED_OUT)
+
+private val EmptySpans = Spans.nostyle("")
 
 class CompetenciesView private (
     val cntrl: CompetenciesController,
@@ -116,6 +120,11 @@ class CompetenciesView private (
       // Open popup input for QA estimation, just change focus
       case _: KeyCode.Enter => focusChanged(Focus.Popup(PopupType.QAsEstimate))
 
+      // Erase qa estimate if selected
+      case _: KeyCode.Delete if state.selected.qaIndex.isDefined =>
+        cntrl.estimatedQA(state.selected.competency, state.selected.qaIndex.get, KnowledgeCompleteness.NotMentioned)
+        this
+
       // Tab key changes focus
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
 
@@ -189,8 +198,11 @@ class CompetenciesView private (
     val selectedStyle =
       if state.focused == Focus.Competencies && state.selected.competency == c.numeration then SelectedItemStyle
       else Style.DEFAULT
-    val header = Span.styled(CompetenciesView.competencyHeaderText(c, knowledges), selectedStyle).bounded(at)
-    ListWidget.Item(content = header)
+    val header = CompetenciesView
+      .competencyHeader(c, knowledges)
+      .withPatchedStyle(selectedStyle)
+      .bounded(at)
+    return ListWidget.Item(content = header)
 
   private def competenciesAtLevel(level: Int): Seq[CompetencyView] =
     CompetenciesView.competenciesAtLevel(cntrl.competencies, level)
@@ -213,23 +225,30 @@ class CompetenciesView private (
 
   private def renderQA(frame: Frame, at: Rect) =
     val allQA = currentCompetency.questions
+    val knowledges = cntrl.computedKnowledges
     val qaItems = (0 until allQA.size)
-      .map(idx => allQA(idx) -> idx)
-      .map((qa, qaIdx) => qaListItem(qa, qaIdx, at))
+      .map(qaIdx => qaListItem(currentCompetency, qaIdx, knowledges, at))
       .toArray
     val widgetTitle = Some(Spans.nostyle("QAs"))
     val widgetBlock = Some(BlockWidget(borders = Borders.ALL, borderType = BorderType.Rounded, title = widgetTitle))
     val widget = ListWidget(items = qaItems, block = widgetBlock)
     frame.renderWidget(widget, at)
 
-  private def qaListItem(qa: QA, qaIdx: Int, at: Rect): ListWidget.Item =
+  private def qaListItem(
+      c: CompetencyView,
+      qaIdx: Int,
+      knowledges: Map[Numeration, KnowledgeComputed],
+      at: Rect
+  ): ListWidget.Item =
+    // TODO add button to see answer only if it exists
     val selectedStyle =
       if state.focused == Focus.QAs && state.selected.qaIndex.getOrElse(-1) == qaIdx then SelectedItemStyle
       else Style.DEFAULT
-    val q = Some(Span.styled(s"Q: ${qa.questionBody}", selectedStyle).bounded(at))
-    val a = qa.answerBody.map(ans => s"A: ${ans}").map(ans => Span.styled(ans, selectedStyle).bounded(at))
-    val qaText = Array(q, a).collect(_ match { case Some(txt) => txt }).reduceLeft((left, right) => left.concat(right))
-    ListWidget.Item(content = qaText)
+    val header = qaHeader(c, qaIdx, knowledges)
+      .withPatchedStyle(selectedStyle)
+      .bounded(at)
+    return ListWidget.Item(content = header)
+  end qaListItem
 
   private def renderPopup(frame: Frame, at: Rect) =
     val activePopup: Option[Popup] = state.focused match
@@ -318,26 +337,44 @@ class CompetenciesView private (
 
   private def currentCompetency: CompetencyView =
     cntrl.competencies.find(c => c.numeration == state.selected.competency).get
+
+  def qaHeader(at: CompetencyView, qaIdx: Int, knowledges: Map[Numeration, KnowledgeComputed]): Spans =
+    val qa = at.questions(qaIdx)
+    val estimatedPercent = qaKnowledgePercent(qa.status)
+    val knowledgePart = knowledges get at.numeration match
+      case None => EmptySpans
+      case Some(knowledge) =>
+        knowledge.overridenBy match
+          case None if estimatedPercent.isEmpty    => EmptySpans
+          case None                                => Spans.nostyle(s"(${estimatedPercent.get})")
+          case Some(_) if estimatedPercent.isEmpty => EmptySpans
+          case Some(overrides)                     => Spans.styled(s"(${estimatedPercent.get})", CrossedItemStyle)
+    return Spans(knowledgePart.spans prepended Span.nostyle(s"${qaIdx + 1}: ${qa.questionBody}"))
+  end qaHeader
+
+  private def qaKnowledgePercent(kc: KnowledgeCompleteness): Option[Int] = kc match
+    case KnowledgeCompleteness.NotMentioned      => None
+    case KnowledgeCompleteness.Answered(percent) => Some(percent)
+    case KnowledgeCompleteness.Unanswered        => Some(0)
 end CompetenciesView
 
 object CompetenciesView:
-
-  private val SelectedItemStyle: Style = Style(addModifier = Modifier.BOLD, bg = Some(Color.White))
-
-  def competencyHeaderText(c: CompetencyView, knowledges: Map[Numeration, KnowledgeComputed]): String =
+  def competencyHeader(c: CompetencyView, knowledges: Map[Numeration, KnowledgeComputed]): Spans =
     val knowledgePart = knowledges get c.numeration match
-      case None => "(?)"
+      case None => EmptySpans
       case Some(knowledge) =>
         knowledge.overridenBy match
           // Not overriden but synthetic, show percent with inherited mark
-          case None if knowledge.synthetic => s"(${knowledge.percent}) →"
-          // Not overriden, just show percent
-          case None => s"(${knowledge.percent})"
-          // Overriden, show percent with overriden mark
-          case Some(_) => s"(← ${knowledge.percent})"
-
-    s"${c.numerationView} : ${c.name} $knowledgePart"
-  end competencyHeaderText
+          case None if knowledge.synthetic => Spans.nostyle(s"(${knowledge.percent}) →")
+          // Not overridden, just show percent
+          case None => Spans.nostyle(s"(${knowledge.percent})")
+          // Overridden, show percent with overriden mark
+          case Some(overrides) =>
+            val overridesPercent = Span.nostyle(s"(← ${(knowledges get overrides).get.percent})")
+            val percentFromInput = Span.styled(s"(${knowledge.percent})", CrossedItemStyle)
+            Spans.from(percentFromInput, overridesPercent)
+    return Spans(knowledgePart.spans prepended Span.nostyle(s"${c.numerationView} : ${c.name}"))
+  end competencyHeader
 
   def competenciesAtLevel(all: Seq[CompetencyView], level: Int): Seq[CompetencyView] = all
     .filter(c => c.numeration.size == level + 1)
@@ -364,15 +401,15 @@ object CompetenciesView:
   def computeLayout(competencies: Seq[CompetencyView], maxNestLevel: Int): Layout =
     require(maxNestLevel >= 0)
 
-    val estimateMargin = 7
+    val estimateMargin = 12
     val gap = 2
     val fallbackMinW = 40 + gap
 
     val competenciesConstraints: Array[Constraint] = Array.from(
       for lvl <- 0 to maxNestLevel yield
         val headerMinW = competenciesAtLevel(competencies, lvl)
-          .map(c => competencyHeaderText(c, Map.empty))
-          .map(_.size)
+          .map(c => competencyHeader(c, Map.empty))
+          .map(_.width)
           .maxOption
           .getOrElse(fallbackMinW)
         Constraint.Min(headerMinW + gap + estimateMargin)
