@@ -200,6 +200,35 @@ class CompetencyOpsTest extends FunSuite:
     )
     assertEquals(k.synthetic, false)
 
+  test("Insert competency to empty competencies list"):
+    assert(insertCompetency(List.empty, Some(List(1)), "New").isEmpty)
+
+  test("Insert competency to top"):
+    val competencies = List(competencyTree(1), competencyTree(2))
+    val withInserted = insertCompetency(competencies, None, "New")
+    assertEquals(withInserted.size, 3)
+    assert(withInserted.exists(c => c.numeration == List(3)))
+
+  test("Insert competency to root"):
+    val tree = competencyTree(1)
+    val withInserted = insertCompetency(List(tree), Some(List(1)), "New")
+    assertEquals(withInserted.size, 1)
+    assert(withInserted.head.childs.exists(c => c.numeration == List(1, 3)))
+
+  test("Insert competency to leaf"):
+    val tree = competencyTree(1)
+    val withInserted = insertCompetency(List(tree), Some(List(1, 2)), "New")
+    assertEquals(withInserted.size, 1)
+    val leafParent = withInserted.head.childs.find(c => c.numeration == List(1, 2))
+    assert(leafParent.isDefined)
+    assert(leafParent.get.childs.exists(c => c.numeration == List(1, 2, 1)))
+
   private def competency(n: Numeration): Competency = competency(n, KnowledgeEstimate.NotMentioned)
 
   private def competency(n: Numeration, e: KnowledgeEstimate) = Competency(n, n.toString, List.empty, List.empty, e)
+
+  private def competencyTree(rootId: Int) =
+    lazy val root = competency(List(rootId))
+    lazy val rootChild1 = competency(List(rootId, 1))
+    lazy val rootChild2 = competency(List(rootId, 2))
+    root.copy(childs = List(rootChild1, rootChild2))

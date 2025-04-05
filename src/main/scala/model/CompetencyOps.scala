@@ -1,7 +1,11 @@
 package model
 
 import common.Numeration
+import common.NumerationOrdering
+import common.directParent
 import common.isChildOf
+import common.isDirectParentOf
+import common.next
 
 type Updater = (Competency) => Competency
 type Filter = (Competency) => Boolean
@@ -85,7 +89,8 @@ def computeKnowledge(c: Competency): Map[Numeration, KnowledgeComputed] =
     case (None, Some(child))         => Some(child.asSynthetic) // Competency formed only from child estimates
     case (parent @ Some(_), None)    => parent
     case (None, None)                => None
-  resultKnowl.map(kc => sub + (c.numeration -> kc)).getOrElse(sub)
+  return resultKnowl.map(kc => sub + (c.numeration -> kc)).getOrElse(sub)
+end computeKnowledge
 
 private def computeQAKnowledge(c: Competency): Option[KnowledgeComputed] =
   c.qa
@@ -100,3 +105,36 @@ private def qaKnowledge(c: Competency, qa: QA): Option[KnowledgeComputed] =
     case KnowledgeEstimate.Answered(percent) =>
       val received = percent / 100f * ktest.maxPoints
       Some(KnowledgeComputed(numeration = c.numeration, maxPoints = ktest.maxPoints, receivedPoints = received))
+
+def insertCompetency(top: Competencies, parent: Option[Numeration], name: String): Competencies =
+  val tgtNumeration = parent match
+    // None means no parent => insert at top
+    case None => top.map(_.numeration).sorted(using NumerationOrdering).lastOption.map(_.next).getOrElse(Vector(1))
+    case Some(parent) =>
+      val tgtParent = top.flatMap(flatten(_)).find(_.numeration == parent) match
+        case None    => return top
+        case Some(p) => p
+      tgtParent.childs.map(_.numeration).sorted(using NumerationOrdering).lastOption match
+        case None    => tgtParent.numeration appended 1
+        case Some(n) => n.next
+  val tgt = userCreatedCompetency(tgtNumeration, name)
+  if tgtNumeration.size == 1 then top appended tgt else top.map(c => insert(tgt, c))
+
+/** Return copy of currParent with inserted tgt to childs */
+private def insert(tgt: Competency, currParent: Competency): Competency =
+  val tgtParent = tgt.numeration.directParent.get
+  if currParent.numeration.isDirectParentOf(tgt.numeration) then
+    currParent.copy(childs = currParent.childs appended tgt)
+  else if !tgtParent.isChildOf(currParent.numeration) then currParent
+  else currParent.copy(childs = currParent.childs.map(c => insert(tgt, c)))
+
+private def userCreatedCompetency(n: Numeration, name: String) = Competency(
+  numeration = n,
+  name = name,
+  qa = Seq.empty,
+  childs = Seq.empty
+)
+
+private def flatten(competency: Competency): Competencies =
+  val childs = if competency.childs.nonEmpty then competency.childs.flatMap(flatten(_)) else Seq.empty
+  childs :+ competency

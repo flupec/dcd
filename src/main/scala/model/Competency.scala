@@ -17,7 +17,9 @@ class Competency(
     case that: Competency => numeration == that.numeration
     case _                => false
 
-  override def hashCode(): Int = numeration.hashCode()
+  override def hashCode: Int = numeration.hashCode
+
+  override def toString: String = s"{numeration=$numeration, childs=$childs}"
 
   def copy(
       childs: Competencies = childs,

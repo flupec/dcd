@@ -32,6 +32,8 @@ extension (curr: Numeration)
 
   /** Returns direct parent of this */
   def directParent: Option[Numeration] = Option.when(curr.size > 1)(curr.slice(0, curr.size - 1))
+
+  def isDirectParentOf(child: Numeration) = child.directParent.map(_ == curr).getOrElse(false)
 end extension
 
 /** Lexiographic order */
