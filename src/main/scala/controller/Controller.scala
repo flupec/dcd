@@ -7,6 +7,7 @@ import model.byNumeration
 import model.computeKnowledge
 import model.estimateUpdater
 import model.insertCompetency
+import model.qaInserter
 import model.qaKnowledgeUpdater
 import model.readCompetencies
 import model.updateCompetencies
@@ -33,6 +34,10 @@ trait CompetenciesController:
 
   /** Create new competency at given parent. If competency must be at 0 nest level, then parent must be None */
   def createCompetency(parent: Option[Numeration], name: String): Seq[CompetencyView]
+
+  /** Create new QA in given competency with specified QA question */
+  def createQA(competency: Numeration, question: String): Seq[CompetencyView]
+end CompetenciesController
 
 class CompetenciesControllerImpl(private var state: Competencies) extends CompetenciesController:
   override def competencies: Seq[CompetencyView] = toView(state)
@@ -62,6 +67,11 @@ class CompetenciesControllerImpl(private var state: Competencies) extends Compet
   override def createCompetency(parent: Option[Numeration], name: String): Seq[CompetencyView] =
     state = insertCompetency(state, parent, name)
     toView(state)
+
+  override def createQA(competency: Numeration, question: String): Seq[CompetencyView] =
+    state = updateCompetencies(state, byNumeration(competency), qaInserter(question))
+    toView(state)
+end CompetenciesControllerImpl
 
 object CompetenciesControllerImpl:
   def create(competenciesSource: File): Either[common.Error, CompetenciesController] =

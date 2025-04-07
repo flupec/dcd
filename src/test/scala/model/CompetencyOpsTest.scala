@@ -223,6 +223,22 @@ class CompetencyOpsTest extends FunSuite:
     assert(leafParent.isDefined)
     assert(leafParent.get.childs.exists(c => c.numeration == List(1, 2, 1)))
 
+  test("Insert QA at root"):
+    val tree = competencyTree(1)
+    val newQuestion = "New question"
+    val withInserted = updateCompetencies(List(tree), byNumeration(List(1)), qaInserter(newQuestion))
+    assertEquals(withInserted.head.qa.size, 1)
+    assertEquals(withInserted.head.qa.head.question, newQuestion)
+
+  test("Insert QA to leaf"):
+    val tree = competencyTree(1)
+    val newQuestion = "New question"
+    val withInserted = updateCompetencies(List(tree), byNumeration(List(1, 2)), qaInserter(newQuestion))
+    val leaf = withInserted.head.childs.find(c => c.numeration == List(1, 2))
+    assert(leaf.isDefined)
+    assertEquals(leaf.get.qa.size, 1)
+    assertEquals(leaf.get.qa.head.question, newQuestion)
+
   private def competency(n: Numeration): Competency = competency(n, KnowledgeEstimate.NotMentioned)
 
   private def competency(n: Numeration, e: KnowledgeEstimate) = Competency(n, n.toString, List.empty, List.empty, e)

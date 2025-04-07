@@ -138,3 +138,7 @@ private def userCreatedCompetency(n: Numeration, name: String) = Competency(
 private def flatten(competency: Competency): Competencies =
   val childs = if competency.childs.nonEmpty then competency.childs.flatMap(flatten(_)) else Seq.empty
   childs :+ competency
+
+def qaInserter(question: String): Updater = (competency) =>
+  val tgt = QA(question = question, answer = None)
+  competency.copy(qa = competency.qa appended tgt)
