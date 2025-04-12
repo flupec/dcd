@@ -51,6 +51,7 @@ class CompetenciesView private (
         case PopupType.QAsEstimate        => handledQAsEstimationInput(key)
         case PopupType.CompetencyInsert   => handledCompetencyCreateInput(key, Some(state.selected.competency))
         case PopupType.CompetencyCreate   => handledCompetencyCreateInput(key, state.selected.competency.directParent)
+        case PopupType.QACreate           => handledQACreateInput(key)
   )
 
   private def handledCompetenciesInput(key: KeyCode): CompetenciesView =
@@ -70,8 +71,11 @@ class CompetenciesView private (
         this
 
       // Open popup input for competency creation, just change focus to create input dialog
-      case _: KeyCode.Insert                   => focusChanged(Focus.Popup(PopupType.CompetencyInsert)) // As child
-      case symb: KeyCode.Char if symb.c == '=' => focusChanged(Focus.Popup(PopupType.CompetencyCreate)) // As brother
+      case f: KeyCode.F if f.num == 1 => focusChanged(Focus.Popup(PopupType.CompetencyCreate)) // As brother
+      case f: KeyCode.F if f.num == 2 => focusChanged(Focus.Popup(PopupType.CompetencyInsert)) // As child
+
+      // Open popup input for QA creation, just change focus
+      case f: KeyCode.F if f.num == 3 => focusChanged(Focus.Popup(PopupType.QACreate))
 
       // Tab key changes focus
       case _: KeyCode.Tab => focusChanged(Focus.QAs)
@@ -134,6 +138,9 @@ class CompetenciesView private (
       case _: KeyCode.Delete if state.selected.qaIndex.isDefined =>
         cntrl.estimatedQA(state.selected.competency, state.selected.qaIndex.get, KnowledgeCompleteness.NotMentioned)
         this
+
+      // Open Popup input for QA creation, just change focus
+      case f: KeyCode.F if f.num == 1 => focusChanged(Focus.Popup(PopupType.QACreate))
 
       // Tab key changes focus
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
@@ -281,6 +288,7 @@ class CompetenciesView private (
         case PopupType.QAsEstimate        => popupQAEstimateWidget(popup)
         case PopupType.CompetencyCreate   => popupCompetencyCreateWidget(popup)
         case PopupType.CompetencyInsert   => popupCompetencyCreateWidget(popup)
+        case PopupType.QACreate           => popupQACreateWidget(popup)
 
     widget match
       case Some(popupWidget) => frame.renderWidget(popupWidget, at)
@@ -301,6 +309,8 @@ class CompetenciesView private (
     popupInputWidget(popup, "Create competency", "Enter competency name:")
 
   private def popupQAEstimateWidget(popup: Popup) = popupInputWidget(popup, "Estimate QA", "Enter QA estimation:")
+
+  private def popupQACreateWidget(p: Popup) = popupInputWidget(p, "Create QA", "Enter question:")
 
   private def popupRect(window: Rect): Rect =
     val (centerx, centery) = (window.width / 2, window.height / 2)
@@ -410,6 +420,37 @@ class CompetenciesView private (
       case _ => this
     end match
   end handledCompetencyCreateInput
+
+  private def handledQACreateInput(key: KeyCode): CompetenciesView =
+    val focus = state.focused.asInstanceOf[Focus.Popup]
+    key match
+      // Abort
+      case _: KeyCode.Esc => focusChanged(Focus.QAs)
+
+      // Create QA
+      case _: KeyCode.Enter =>
+        notEmptyValidator(focus.input) match
+          // Incorrect input. TODO render error message
+          case Left(err) => focusChanged(Focus.QAs)
+          // OK, create QA
+          case Right(question) =>
+            cntrl.createQA(state.selected.competency, question)
+            if state.selected.qaIndex.isDefined then focusChanged(Focus.QAs) else focusChanged(Focus.Competencies)
+
+      // Input symbols
+      case symb: KeyCode.Char =>
+        notEmptyValidator(String.valueOf(symb.c)) match
+          // Incorrect input. TODO render error message
+          case Left(err) => focusChanged(Focus.QAs)
+          // OK, add symbol to input
+          case Right(gotInput) => focusChanged(Focus.Popup(focus.kind, focus.input + gotInput))
+
+      // Delete one input symbol
+      case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
+
+      case _ => this
+    end match
+  end handledQACreateInput
 end CompetenciesView
 
 object CompetenciesView:
@@ -519,3 +560,5 @@ object CompetenciesView:
     case CompetencyCreate
     // Create competency and insert it to child of current selected competency
     case CompetencyInsert
+    // Create QA
+    case QACreate
