@@ -42,13 +42,16 @@ class CompetenciesView private (
     val show: MessageShow
 ) extends TuiView:
 
-  override def handledKeyboard(key: KeyCode): Option[CompetenciesView] = state.focused match
-    case Focus.Competencies => Some(handledCompetenciesInput(key))
-    case Focus.QAs          => Some(handledQAsInput(key))
+  override def handledKeyboard(key: KeyCode): Option[CompetenciesView] = Some(state.focused match
+    case Focus.Competencies => handledCompetenciesInput(key)
+    case Focus.QAs          => handledQAsInput(key)
     case Popup(kind, _) =>
       kind match
-        case PopupType.CompetencyEstimate => Some(handledCompetencyEstimationInput(key))
-        case PopupType.QAsEstimate        => Some(handledQAsEstimationInput(key))
+        case PopupType.CompetencyEstimate => handledCompetencyEstimationInput(key)
+        case PopupType.QAsEstimate        => handledQAsEstimationInput(key)
+        case PopupType.CompetencyInsert   => handledCompetencyCreateInput(key, Some(state.selected.competency))
+        case PopupType.CompetencyCreate   => handledCompetencyCreateInput(key, state.selected.competency.directParent)
+  )
 
   private def handledCompetenciesInput(key: KeyCode): CompetenciesView =
     key match
@@ -65,6 +68,10 @@ class CompetenciesView private (
       case _: KeyCode.Delete =>
         cntrl.estimatedCompetency(state.selected.competency, KnowledgeCompleteness.NotMentioned)
         this
+
+      // Open popup input for competency creation, just change focus to create input dialog
+      case _: KeyCode.Insert                   => focusChanged(Focus.Popup(PopupType.CompetencyInsert)) // As child
+      case symb: KeyCode.Char if symb.c == '=' => focusChanged(Focus.Popup(PopupType.CompetencyCreate)) // As brother
 
       // Tab key changes focus
       case _: KeyCode.Tab => focusChanged(Focus.QAs)
@@ -222,6 +229,8 @@ class CompetenciesView private (
       // Render only direct childs of previous level selected items
       val prevLevelSelected = state.findSelectedAtLevel(level - 1).get
       atLevel.filter(c => c.numeration.isChildOf(prevLevelSelected))
+    end if
+  end toRenderCompetencies
 
   private def renderQA(frame: Frame, at: Rect) =
     val allQA = currentCompetency.questions
@@ -259,21 +268,27 @@ class CompetenciesView private (
       popup.kind match
         case PopupType.CompetencyEstimate => popupCompetencyEstimateWidget(popup)
         case PopupType.QAsEstimate        => popupQAEstimateWidget(popup)
+        case PopupType.CompetencyCreate   => popupCompetencyCreateWidget(popup)
+        case PopupType.CompetencyInsert   => popupCompetencyCreateWidget(popup)
 
     widget match
       case Some(popupWidget) => frame.renderWidget(popupWidget, at)
       case None              => ()
 
-  private def popupEstimateWidget(popup: Popup, title: String): ParagraphWidget =
+  private def popupInputWidget(popup: Popup, title: String, prompt: String): ParagraphWidget =
     val titleTxt = Spans.nostyle(title)
     val txt = popup.input
     val border = BlockWidget(title = Some(titleTxt), titleAlignment = Alignment.Center, borders = Borders.ALL)
-    val paragraph = Array(Spans.from(Span.nostyle("Enter competency estimation:")), Spans.nostyle(txt))
+    val paragraph = Array(Spans.from(Span.nostyle(prompt)), Spans.nostyle(txt))
     ParagraphWidget(text = Text(paragraph), block = Some(border), alignment = Alignment.Center)
 
-  private def popupCompetencyEstimateWidget(popup: Popup) = popupEstimateWidget(popup, "Competencies estimate")
+  private def popupCompetencyEstimateWidget(popup: Popup) =
+    popupInputWidget(popup, "Estimate competency", "Enter competency estimation:")
 
-  private def popupQAEstimateWidget(popup: Popup) = popupEstimateWidget(popup, "QA estimate")
+  private def popupCompetencyCreateWidget(popup: Popup) =
+    popupInputWidget(popup, "Create competency", "Enter competency name:")
+
+  private def popupQAEstimateWidget(popup: Popup) = popupInputWidget(popup, "Estimate QA", "Enter QA estimation:")
 
   private def popupRect(window: Rect): Rect =
     val (centerx, centery) = (window.width / 2, window.height / 2)
@@ -356,6 +371,32 @@ class CompetenciesView private (
     case KnowledgeCompleteness.NotMentioned      => None
     case KnowledgeCompleteness.Answered(percent) => Some(percent)
     case KnowledgeCompleteness.Unanswered        => Some(0)
+
+  private def handledCompetencyCreateInput(key: KeyCode, parentOfCreated: Option[Numeration]): CompetenciesView =
+    val focus = state.focused.asInstanceOf[Focus.Popup]
+    key match
+      // Abort
+      case _: KeyCode.Esc => focusChanged(Focus.Competencies)
+
+      // Create competency
+      case _: KeyCode.Enter =>
+        cntrl.createCompetency(parentOfCreated, focus.input)
+        focusChanged(Focus.Competencies)
+
+      // Input symbols
+      case symb: KeyCode.Char =>
+        notEmptyValidator(String.valueOf(symb.c)) match
+          // Incorrect input. TODO render error message
+          case Left(err) => focusChanged(Focus.Competencies)
+          // OK, add symbol to input
+          case Right(gotInput) => focusChanged(Focus.Popup(focus.kind, focus.input + gotInput))
+
+      // Delete one input symbol
+      case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
+
+      case _ => this
+    end match
+  end handledCompetencyCreateInput
 end CompetenciesView
 
 object CompetenciesView:
@@ -457,5 +498,11 @@ object CompetenciesView:
     case Popup(kind: PopupType, input: String = "")
 
   enum PopupType derives CanEqual:
+    // Estimate competency
     case CompetencyEstimate
+    // Estimate QA
     case QAsEstimate
+    // Create competency at current nest level
+    case CompetencyCreate
+    // Create competency and insert it to child of current selected competency
+    case CompetencyInsert
