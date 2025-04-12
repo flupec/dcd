@@ -77,6 +77,7 @@ class CompetenciesView private (
       case _: KeyCode.Tab => focusChanged(Focus.QAs)
 
       case _ => this
+    end match
   end handledCompetenciesInput
 
   private def childCompetencySelected: Option[CompetenciesView] =
@@ -107,6 +108,7 @@ class CompetenciesView private (
       // From popup to Competency or QAs
       // Or from Competency or QAs to popup
       case _ => withState(state.focusedOn(resultFocus))
+  end focusChanged
 
   private def changeFocusBetweenQACompetency(focus: Focus): CompetenciesView =
     // Init selected qa with first item in current competency
@@ -117,6 +119,7 @@ class CompetenciesView private (
     selectedQAIndex match
       case None             => this // Do not change focus - there are no qa items
       case Some(selectedQA) => withState(state.focusedOn(focus).qaSelected(selectedQA))
+  end changeFocusBetweenQACompetency
 
   private def handledQAsInput(key: KeyCode): CompetenciesView =
     key match
@@ -136,6 +139,8 @@ class CompetenciesView private (
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
 
       case _ => this
+    end match
+  end handledQAsInput
 
   private def nextQASelected: Option[CompetenciesView] =
     val qa: Seq[QA] = currentCompetency.questions
@@ -144,6 +149,7 @@ class CompetenciesView private (
       .orElse(Option.when(qa.nonEmpty)(0)) // or first idx if exists
 
     nextIdx.map(newIdx => state.qaSelected(newIdx)).map(withState(_))
+  end nextQASelected
 
   private def prevQASelected: Option[CompetenciesView] =
     val prevIdx: Option[Int] = state.selected.qaIndex
@@ -151,6 +157,7 @@ class CompetenciesView private (
       .orElse(Option.when(currentCompetency.questions.nonEmpty)(0)) // or first idx if exists
 
     prevIdx.map(newIdx => state.qaSelected(newIdx)).map(withState(_))
+  end prevQASelected
 
   override def render(frame: Frame, at: Rect) =
     val layout = Layout(
@@ -163,6 +170,7 @@ class CompetenciesView private (
     renderCompetencies(frame, chunks(0))
     renderQA(frame, chunks(1))
     renderPopup(frame, popupRect(at))
+  end render
 
   private def renderCompetencies(frame: Frame, at: Rect) =
     val chunks: Array[Rect] = competenciesLayout.split(at)
@@ -177,6 +185,7 @@ class CompetenciesView private (
         case lvl if lvl == maxNestLevel => Borders.RIGHT | Borders.TOP | Borders.BOTTOM
         case _                          => Borders.TOP | Borders.BOTTOM
       renderCompetencyLevel(frame, chunks(level), borders, level, cntrl.computedKnowledges)
+  end renderCompetencies
 
   private def renderCompetencyLevel(
       frame: Frame,
@@ -195,6 +204,7 @@ class CompetenciesView private (
       block = Some(BlockWidget(borders = borders, title = widgetTitle))
     )
     frame.renderWidget(widget, at)
+  end renderCompetencyLevel
 
   private def competencyListItem(
       c: CompetencyView,
@@ -242,6 +252,7 @@ class CompetenciesView private (
     val widgetBlock = Some(BlockWidget(borders = Borders.ALL, borderType = BorderType.Rounded, title = widgetTitle))
     val widget = ListWidget(items = qaItems, block = widgetBlock)
     frame.renderWidget(widget, at)
+  end renderQA
 
   private def qaListItem(
       c: CompetencyView,
@@ -274,6 +285,7 @@ class CompetenciesView private (
     widget match
       case Some(popupWidget) => frame.renderWidget(popupWidget, at)
       case None              => ()
+  end renderPopup
 
   private def popupInputWidget(popup: Popup, title: String, prompt: String): ParagraphWidget =
     val titleTxt = Spans.nostyle(title)
@@ -339,6 +351,7 @@ class CompetenciesView private (
           case Right(input) => onInputSubmit(input)
 
       case _ => this
+    end match
   end handleEstimationPopupInput
 
   private def handledQAsEstimationInput(key: KeyCode) = handleEstimationPopupInput(key, Focus.QAs, submitQaEstimate)

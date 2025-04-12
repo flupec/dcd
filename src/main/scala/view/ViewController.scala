@@ -29,6 +29,7 @@ class ViewController(
       case quit: Event.Key if isQuitEvent(quit) => false
       case key: Event.Key                       => handledKeyboard(key.keyEvent.code).isDefined
       case _                                    => true
+  end handleInput
 
   private def isQuitEvent(e: Event.Key): Boolean =
     e.keyEvent.code match
