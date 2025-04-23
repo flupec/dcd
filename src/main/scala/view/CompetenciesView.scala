@@ -8,9 +8,11 @@ import tui.Borders
 import tui.Color
 import tui.Constraint
 import tui.Direction.Horizontal
+import tui.Direction.Vertical
 import tui.Frame
 import tui.Layout
 import tui.Modifier
+import tui.Point
 import tui.Rect
 import tui.Span
 import tui.Spans
@@ -22,6 +24,8 @@ import tui.widgets.BlockWidget
 import tui.widgets.BlockWidget.BorderType
 import tui.widgets.ListWidget
 import tui.widgets.ParagraphWidget
+import tui.widgets.canvas.CanvasWidget
+import tui.widgets.canvas.Label
 import view.CompetenciesView.Focus
 import view.CompetenciesView.Focus.Popup
 import view.CompetenciesView.PopupType
@@ -31,6 +35,7 @@ val log: Logger = Logger(classOf[CompetenciesView])
 
 private val SelectedItemStyle: Style = Style(bg = Some(Color.White))
 private val CrossedItemStyle: Style = Style(addModifier = Modifier.CROSSED_OUT)
+private val FootlineItemStyle: Style = Style(bg = Some(Color.Blue))
 
 private val EmptySpans = Spans.nostyle("")
 
@@ -167,16 +172,18 @@ class CompetenciesView private (
   end prevQASelected
 
   override def render(frame: Frame, at: Rect) =
-    val layout = Layout(
-      direction = Horizontal,
-      constraints = Array(Constraint.Percentage(60), Constraint.Percentage(40))
-    )
-    val chunks = layout.split(at)
-    require(chunks.size == 2)
-
-    renderCompetencies(frame, chunks(0))
-    renderQA(frame, chunks(1))
+    val verticalChunks =
+      Layout(Vertical, constraints = Array(Constraint.Percentage(99), Constraint.Percentage(1))).split(at)
+    require(verticalChunks.size == 2)
+    val (workingArea, footlineArea) = (verticalChunks(0), verticalChunks(1))
+    val workingAreaChunks =
+      Layout(Horizontal, constraints = Array(Constraint.Percentage(60), Constraint.Percentage(40))).split(workingArea)
+    require(workingAreaChunks.size == 2)
+    val (competencyArea, qaArea) = (workingAreaChunks(0), workingAreaChunks(1))
+    renderCompetencies(frame, competencyArea)
+    renderQA(frame, qaArea)
     renderPopup(frame, popupRect(at))
+    renderFootline(frame, footlineArea)
   end render
 
   private def renderCompetencies(frame: Frame, at: Rect) =
@@ -294,6 +301,48 @@ class CompetenciesView private (
       case Some(popupWidget) => frame.renderWidget(popupWidget, at)
       case None              => ()
   end renderPopup
+
+  private def renderFootline(frame: Frame, at: Rect) =
+    val canvas = CanvasWidget(xBounds = Point(0, at.width), yBounds = Point(0, at.height)): ctx =>
+      ctx.labels ++= footlineLabels(at)
+    frame.renderWidget(canvas, at)
+
+  /** Returns sequence of (key, operationDescription) */
+  private def footlineElems: Seq[(String, String)] = state.focused match
+    // TODO Show by condition. For example, erase estimate must be shown only if estimate exists
+    case Focus.Competencies =>
+      Vector(
+        ("ENTER", "Estimate"),
+        ("DEL", "Erase estimate"),
+        ("F1", "Create competency"),
+        ("F2", "Create competency at child"),
+        ("F3", "Create QA"),
+        ("TAB", "Switch")
+      )
+    case Focus.QAs =>
+      Vector(
+        ("ENTER", "Estimate"),
+        ("DEL", "Erase estimate"),
+        ("F1", "Create QA"),
+        ("TAB", "Switch")
+      )
+    case Popup(kind, _) =>
+      kind match
+        case _ => Vector(("ESC", "Abort"), ("ENTER", "Submit"))
+  end footlineElems
+
+  private def footlineLabels(at: Rect): Seq[Label] =
+    val elems = footlineElems
+    val (borderGap, itemsGap) = (5, 5)
+    val spanByIdx = (i: Int) => Spans.styled(s"[${elems(i)._1}] ${elems(i)._2}", FootlineItemStyle)
+    var lastPos = borderGap
+    return (0 until elems.size).map: i =>
+      if i == 0 then Label(x = borderGap, y = 0d, spans = spanByIdx(i))
+      else
+        val pos = lastPos + itemsGap + spanByIdx(i - 1).width
+        lastPos = pos
+        Label(x = pos, y = 0d, spans = spanByIdx(i))
+  end footlineLabels
 
   private def popupInputWidget(popup: Popup, title: String, prompt: String): ParagraphWidget =
     val titleTxt = Spans.nostyle(title)
@@ -468,7 +517,7 @@ object CompetenciesView:
             val overridesPercent = Span.nostyle(s"(← ${(knowledges get overrides).get.percent})")
             val percentFromInput = Span.styled(s"(${knowledge.percent})", CrossedItemStyle)
             Spans.from(percentFromInput, overridesPercent)
-    return Spans(knowledgePart.spans prepended Span.nostyle(s"${c.numerationView} : ${c.name}"))
+    return Spans(knowledgePart.spans prepended Span.nostyle(s"${c.numerationView}: ${c.name}"))
   end competencyHeader
 
   def competenciesAtLevel(all: Seq[CompetencyView], level: Int): Seq[CompetencyView] = all
