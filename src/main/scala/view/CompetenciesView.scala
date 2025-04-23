@@ -3,27 +3,15 @@ package view
 import com.typesafe.scalalogging.Logger
 import common.*
 import controller.CompetenciesController
-import tui.Alignment
-import tui.Borders
-import tui.Color
-import tui.Constraint
+import tui.*
 import tui.Direction.Horizontal
 import tui.Direction.Vertical
-import tui.Frame
-import tui.Layout
-import tui.Modifier
-import tui.Point
-import tui.Rect
-import tui.Span
-import tui.Spans
-import tui.Style
-import tui.Text
-import tui.Widget
 import tui.crossterm.KeyCode
 import tui.widgets.BlockWidget
 import tui.widgets.BlockWidget.BorderType
 import tui.widgets.ListWidget
 import tui.widgets.ParagraphWidget
+import tui.widgets.ParagraphWidget.Wrap
 import tui.widgets.canvas.CanvasWidget
 import tui.widgets.canvas.Label
 import view.CompetenciesView.Focus
@@ -57,6 +45,7 @@ class CompetenciesView private (
         case PopupType.CompetencyInsert   => handledCompetencyCreateInput(key, Some(state.selected.competency))
         case PopupType.CompetencyCreate   => handledCompetencyCreateInput(key, state.selected.competency.directParent)
         case PopupType.QACreate           => handledQACreateInput(key)
+        case PopupType.QAShowAnswer       => handledQAAnswerInfoInput(key)
   )
 
   private def handledCompetenciesInput(key: KeyCode): CompetenciesView =
@@ -146,6 +135,9 @@ class CompetenciesView private (
 
       // Open Popup input for QA creation, just change focus
       case f: KeyCode.F if f.num == 1 => focusChanged(Focus.Popup(PopupType.QACreate))
+
+      // Open Popup to show answer paragraph, just change focus
+      case f: KeyCode.F if f.num == 2 => focusChanged(Focus.Popup(PopupType.QAShowAnswer))
 
       // Tab key changes focus
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
@@ -296,6 +288,7 @@ class CompetenciesView private (
         case PopupType.CompetencyCreate   => popupCompetencyCreateWidget(popup)
         case PopupType.CompetencyInsert   => popupCompetencyCreateWidget(popup)
         case PopupType.QACreate           => popupQACreateWidget(popup)
+        case PopupType.QAShowAnswer       => qaAnswerWidget(at)
 
     widget match
       case Some(popupWidget) => frame.renderWidget(popupWidget, at)
@@ -324,6 +317,7 @@ class CompetenciesView private (
         ("ENTER", "Estimate"),
         ("DEL", "Erase estimate"),
         ("F1", "Create QA"),
+        ("F2", "Show answer"),
         ("TAB", "Switch")
       )
     case Popup(kind, _) =>
@@ -363,12 +357,34 @@ class CompetenciesView private (
 
   private def popupRect(window: Rect): Rect =
     val (centerx, centery) = (window.width / 2, window.height / 2)
-    val (xsize, ysize) = (40, 10)
+    val (xsize, ysize) = (60, 15)
     Rect(
       x = centerx - xsize / 2,
       y = centery - ysize / 2,
       width = xsize,
       height = ysize
+    )
+
+  private def qaAnswerWidget(at: Rect) = popupInfoWidget(
+    at,
+    "Answer",
+    state.selected.qaIndex.flatMap(qa => currentCompetency.questions(qa).answerBody).getOrElse("")
+  )
+
+  private def popupInfoWidget(at: Rect, title: String, info: String): ParagraphWidget =
+    val titleTxt = Spans.nostyle(title)
+    val border = BlockWidget(
+      title = Some(titleTxt),
+      titleAlignment = Alignment.Center,
+      borders = Borders.ALL,
+      borderType = BorderType.Thick
+    )
+    val paragraph = Array(Spans.from(Span.nostyle(info)))
+    return ParagraphWidget(
+      text = Text(paragraph),
+      block = Some(border),
+      alignment = Alignment.Left,
+      wrap = Some(Wrap(true))
     )
 
   private def handledCompetencyEstimationInput(key: KeyCode) =
@@ -500,6 +516,12 @@ class CompetenciesView private (
       case _ => this
     end match
   end handledQACreateInput
+
+  private def handledQAAnswerInfoInput(key: KeyCode) = handledInfoWidgetInput(key, Focus.QAs)
+
+  private def handledInfoWidgetInput(key: KeyCode, focusOnClose: Focus): CompetenciesView = key match
+    case _: (KeyCode.Esc | KeyCode.Enter) => focusChanged(focusOnClose)
+    case _                                => this
 end CompetenciesView
 
 object CompetenciesView:
@@ -611,3 +633,5 @@ object CompetenciesView:
     case CompetencyInsert
     // Create QA
     case QACreate
+    // Show answer
+    case QAShowAnswer
