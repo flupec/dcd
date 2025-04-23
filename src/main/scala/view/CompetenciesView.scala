@@ -18,6 +18,7 @@ import view.CompetenciesView.Focus
 import view.CompetenciesView.Focus.Popup
 import view.CompetenciesView.PopupType
 import view.CompetenciesView.ViewState
+import tui.widgets.ClearWidget
 
 val log: Logger = Logger(classOf[CompetenciesView])
 
@@ -290,9 +291,9 @@ class CompetenciesView private (
         case PopupType.QACreate           => popupQACreateWidget(popup)
         case PopupType.QAShowAnswer       => qaAnswerWidget(at)
 
-    widget match
-      case Some(popupWidget) => frame.renderWidget(popupWidget, at)
-      case None              => ()
+    widget.foreach: popupWidget =>
+      frame.renderWidget(ClearWidget, at)
+      frame.renderWidget(popupWidget, at)
   end renderPopup
 
   private def renderFootline(frame: Frame, at: Rect) =

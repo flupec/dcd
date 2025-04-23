@@ -33,8 +33,8 @@ class ViewController(
 
   private def isQuitEvent(e: Event.Key): Boolean =
     e.keyEvent.code match
-      case c: KeyCode.Char => c.c == 'q'
-      case _               => false
+      case f: KeyCode.F => f.num == 12
+      case _            => false
 
   override def handledKeyboard(key: KeyCode): Option[TuiView] =
     main.handledKeyboard(key) match
