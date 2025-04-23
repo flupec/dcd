@@ -267,7 +267,6 @@ class CompetenciesView private (
       knowledges: Map[Numeration, KnowledgeComputed],
       at: Rect
   ): ListWidget.Item =
-    // TODO add button to see answer only if it exists
     val selectedStyle =
       if state.focused == Focus.QAs && state.selected.qaIndex.getOrElse(-1) == qaIdx then SelectedItemStyle
       else Style.DEFAULT
