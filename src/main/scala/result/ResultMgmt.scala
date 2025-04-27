@@ -34,11 +34,7 @@ type ExportTgtLocator = (c: Interviewee) => Either[ResultExportError, Writer]
 private val ExportDirEnvKey = "DCD_EXPORT_PATH"
 
 private def fsExportTgtLocator(c: Interviewee): Either[ResultExportError, Writer] =
-  val exportDir = Path.of:
-    (sys.env.get(ExportDirEnvKey), sys.props.get("user.dir")) match
-      case (Some(dir), _)    => dir
-      case (None, Some(dir)) => dir
-      case (None, None)      => ??? // user.dir is always present
+  val exportDir = Path.of(sys.env.get(ExportDirEnvKey).getOrElse(sys.props("user.dir")))
   val timestamp: String = OffsetDateTime.now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
   val filename = s"${c.lastname}-$timestamp"
   return Right(FileWriter(exportDir.resolve(filename).toFile))
