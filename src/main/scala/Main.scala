@@ -15,7 +15,7 @@ import scala.util.CommandLineParser
 val LogBar = LogView()
 given MessageShow = LogBar.updateLogs
 
-@main def hello(args: String*): Unit =
+@main def main(args: String*): Unit =
   if args.isEmpty then
     println("Usage: dcd -f ./example.dcd")
     return

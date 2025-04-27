@@ -32,6 +32,7 @@ class Competency(
     childs = childs,
     estimate = estimate
   )
+end Competency
 
 case class QA(
     question: String,
@@ -93,6 +94,7 @@ class KnowledgeComputed(
     case Some(currOVerriden)                                                      => this
 
   def asSynthetic: KnowledgeComputed = copy(synthetic = true)
+end KnowledgeComputed
 
 object KnowledgeComputed:
   /** Sum knowledges and sets numeration for summary knowledge */
@@ -111,3 +113,4 @@ object KnowledgeComputed:
     case KnowledgeEstimate.NotMentioned => None
     case KnowledgeEstimate.Answered(percent) =>
       Some(KnowledgeComputed(numeration = c.numeration, maxPoints = 1f, receivedPoints = percent / 100f))
+end KnowledgeComputed

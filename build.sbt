@@ -20,5 +20,6 @@ lazy val root = project
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
 
     libraryDependencies += "com.olvind.tui" %% "tui" % "0.0.7",
+    libraryDependencies += "com.lihaoyi" %% "upickle" % "4.1.0",
     libraryDependencies += "org.scalameta" %% "munit" % "1.0.0" % Test
   )
