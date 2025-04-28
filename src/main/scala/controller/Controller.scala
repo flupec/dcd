@@ -9,12 +9,10 @@ import model.estimateUpdater
 import model.insertCompetency
 import model.qaInserter
 import model.qaKnowledgeUpdater
-import model.readCompetencies
 import model.updateCompetencies
+import result.ResultMgmt
 import view.CompetencyView
 import view.KnowledgeCompleteness
-
-import java.io.File
 
 trait CompetenciesController:
   /** Returns current state of competencies */
@@ -37,9 +35,15 @@ trait CompetenciesController:
 
   /** Create new QA in given competency with specified QA question */
   def createQA(competency: Numeration, question: String): Seq[CompetencyView]
+
+  def exportKnowledges: Unit
 end CompetenciesController
 
-class CompetenciesControllerImpl(private var state: Competencies) extends CompetenciesController:
+class CompetenciesControllerImpl(
+    private val resultMgmt: ResultMgmt,
+    private var state: Competencies
+) extends CompetenciesController:
+
   override def competencies: Seq[CompetencyView] = toView(state)
 
   override def estimatedCompetency(
@@ -58,11 +62,14 @@ class CompetenciesControllerImpl(private var state: Competencies) extends Compet
     toView(state)
 
   override def computedKnowledges: Map[Numeration, view.KnowledgeComputed] =
+    val modelKnowledges = computedModelKnowledges
+    return modelKnowledges.view.mapValues(toKnowledgeComputedView(_)).toMap
+
+  private def computedModelKnowledges: Map[Numeration, KnowledgeComputed] =
     val roots = state.filter(_.numeration.size == 1)
     val knowledges: Seq[Map[Numeration, KnowledgeComputed]] = roots.map(computeKnowledge(_))
     val merged = knowledges.reduce((l, r) => l concat r)
-    merged.view.mapValues(toKnowledgeComputedView(_)).toMap
-  end computedKnowledges
+    return merged
 
   override def createCompetency(parent: Option[Numeration], name: String): Seq[CompetencyView] =
     state = insertCompetency(state, parent, name)
@@ -71,8 +78,6 @@ class CompetenciesControllerImpl(private var state: Competencies) extends Compet
   override def createQA(competency: Numeration, question: String): Seq[CompetencyView] =
     state = updateCompetencies(state, byNumeration(competency), qaInserter(question))
     toView(state)
-end CompetenciesControllerImpl
 
-object CompetenciesControllerImpl:
-  def create(competenciesSource: File): Either[common.Error, CompetenciesController] =
-    readCompetencies(competenciesSource).map(CompetenciesControllerImpl(_))
+  override def exportKnowledges: Unit = resultMgmt.doExport(computedModelKnowledges.values.toList)
+end CompetenciesControllerImpl

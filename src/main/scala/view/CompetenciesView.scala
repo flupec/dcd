@@ -9,6 +9,7 @@ import tui.Direction.Vertical
 import tui.crossterm.KeyCode
 import tui.widgets.BlockWidget
 import tui.widgets.BlockWidget.BorderType
+import tui.widgets.ClearWidget
 import tui.widgets.ListWidget
 import tui.widgets.ParagraphWidget
 import tui.widgets.ParagraphWidget.Wrap
@@ -18,7 +19,6 @@ import view.CompetenciesView.Focus
 import view.CompetenciesView.Focus.Popup
 import view.CompetenciesView.PopupType
 import view.CompetenciesView.ViewState
-import tui.widgets.ClearWidget
 
 val log: Logger = Logger(classOf[CompetenciesView])
 
@@ -47,6 +47,7 @@ class CompetenciesView private (
         case PopupType.CompetencyCreate   => handledCompetencyCreateInput(key, state.selected.competency.directParent)
         case PopupType.QACreate           => handledQACreateInput(key)
         case PopupType.QAShowAnswer       => handledQAAnswerInfoInput(key)
+        case PopupType.ShowInfo(_, _, focusOnClose) => handledInfoWidgetInput(key, focusOnClose)
   )
 
   private def handledCompetenciesInput(key: KeyCode): CompetenciesView =
@@ -71,6 +72,11 @@ class CompetenciesView private (
 
       // Open popup input for QA creation, just change focus
       case f: KeyCode.F if f.num == 3 => focusChanged(Focus.Popup(PopupType.QACreate))
+
+      // Export competency results
+      case f: KeyCode.F if f.num == 10 =>
+        cntrl.exportKnowledges
+        focusChanged(Focus.Popup(PopupType.ShowInfo("Export", "Export was successful", state.focused)))
 
       // Tab key changes focus
       case _: KeyCode.Tab => focusChanged(Focus.QAs)
@@ -139,6 +145,10 @@ class CompetenciesView private (
 
       // Open Popup to show answer paragraph, just change focus
       case f: KeyCode.F if f.num == 2 => focusChanged(Focus.Popup(PopupType.QAShowAnswer))
+
+      case f: KeyCode.F if f.num == 10 =>
+        cntrl.exportKnowledges
+        this
 
       // Tab key changes focus
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
@@ -283,12 +293,13 @@ class CompetenciesView private (
 
     val widget: Option[Widget] = activePopup.map: popup =>
       popup.kind match
-        case PopupType.CompetencyEstimate => popupCompetencyEstimateWidget(popup)
-        case PopupType.QAsEstimate        => popupQAEstimateWidget(popup)
-        case PopupType.CompetencyCreate   => popupCompetencyCreateWidget(popup)
-        case PopupType.CompetencyInsert   => popupCompetencyCreateWidget(popup)
-        case PopupType.QACreate           => popupQACreateWidget(popup)
-        case PopupType.QAShowAnswer       => qaAnswerWidget(at)
+        case PopupType.CompetencyEstimate       => popupCompetencyEstimateWidget(popup)
+        case PopupType.QAsEstimate              => popupQAEstimateWidget(popup)
+        case PopupType.CompetencyCreate         => popupCompetencyCreateWidget(popup)
+        case PopupType.CompetencyInsert         => popupCompetencyCreateWidget(popup)
+        case PopupType.QACreate                 => popupQACreateWidget(popup)
+        case PopupType.QAShowAnswer             => qaAnswerWidget(at)
+        case PopupType.ShowInfo(title, body, _) => popupInfoWidget(at, title, body)
 
     widget.foreach: popupWidget =>
       frame.renderWidget(ClearWidget, at)
@@ -310,7 +321,9 @@ class CompetenciesView private (
         ("F1", "Create competency"),
         ("F2", "Create competency at child"),
         ("F3", "Create QA"),
-        ("TAB", "Switch")
+        ("F10", "Export results"),
+        ("TAB", "Switch"),
+        ("F12", "Exit")
       )
     case Focus.QAs =>
       Vector(
@@ -318,11 +331,13 @@ class CompetenciesView private (
         ("DEL", "Erase estimate"),
         ("F1", "Create QA"),
         ("F2", "Show answer"),
-        ("TAB", "Switch")
+        ("F10", "Export results"),
+        ("TAB", "Switch"),
+        ("F12", "Exit")
       )
     case Popup(kind, _) =>
       kind match
-        case _ => Vector(("ESC", "Abort"), ("ENTER", "Submit"))
+        case _ => Vector(("ESC", "Abort"), ("ENTER", "Submit"), ("F12", "Exit"))
   end footlineElems
 
   private def footlineLabels(at: Rect): Seq[Label] =
@@ -635,3 +650,5 @@ object CompetenciesView:
     case QACreate
     // Show answer
     case QAShowAnswer
+    // Generic popup to show info
+    case ShowInfo(title: String, body: String, focusOnClose: Focus)

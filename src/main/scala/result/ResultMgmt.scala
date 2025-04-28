@@ -33,10 +33,10 @@ type ExportTgtLocator = (c: Interviewee) => Either[ResultExportError, Writer]
 
 private val ExportDirEnvKey = "DCD_EXPORT_PATH"
 
-private def fsExportTgtLocator(c: Interviewee): Either[ResultExportError, Writer] =
+def fsExportTgtLocator(c: Interviewee): Either[ResultExportError, Writer] =
   val exportDir = Path.of(sys.env.get(ExportDirEnvKey).getOrElse(sys.props("user.dir")))
-  val timestamp: String = OffsetDateTime.now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-  val filename = s"${c.lastname}-$timestamp"
+  val timestamp: String = OffsetDateTime.now.format(DateTimeFormatter.ISO_OFFSET_DATE)
+  val filename = s"${c.lastname}-$timestamp.json"
   return Right(FileWriter(exportDir.resolve(filename).toFile))
 
 class ResultMgmtImpl(
@@ -47,7 +47,7 @@ class ResultMgmtImpl(
 
   override def doExport(tgt: Seq[KnowledgeComputed]): Either[ResultExportError, Unit] =
     val result = exportResult(tgt)
-    exportLocator(result.candidate) match
+    return exportLocator(result.candidate) match
       case Left(err) => Left(err)
       case Right(exportTgt) =>
         Using(exportTgt)(fw => writeTo(result, fw)).toEither
