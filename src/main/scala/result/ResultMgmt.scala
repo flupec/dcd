@@ -35,7 +35,7 @@ private val ExportDirEnvKey = "DCD_EXPORT_PATH"
 
 def fsExportTgtLocator(c: Interviewee): Either[ResultExportError, Writer] =
   val exportDir = Path.of(sys.env.get(ExportDirEnvKey).getOrElse(sys.props("user.dir")))
-  val timestamp: String = OffsetDateTime.now.format(DateTimeFormatter.ISO_OFFSET_DATE)
+  val timestamp: String = OffsetDateTime.now.format(DateTimeFormatter.ISO_LOCAL_DATE)
   val filename = s"${c.lastname}-$timestamp.json"
   return Right(FileWriter(exportDir.resolve(filename).toFile))
 

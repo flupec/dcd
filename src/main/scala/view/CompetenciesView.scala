@@ -153,7 +153,7 @@ class CompetenciesView private (
 
       case f: KeyCode.F if f.num == 10 =>
         cntrl.exportKnowledges
-        this
+        focusChanged(Focus.Popup(PopupType.ShowInfo("Export", "Export was successful", state.focused)))
 
       // Tab key changes focus
       case _: KeyCode.Tab => withState(state.focusedOn(Focus.Competencies))
