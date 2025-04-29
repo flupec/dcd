@@ -14,3 +14,9 @@ def numRangeValidator(min: Int, max: Int): InputValidator = s =>
     case None                                        => Left(IncorrectValue("non parseable integer"))
 
 def notEmptyValidator: InputValidator = s => Either.cond(s.nonEmpty, s, IncorrectValue("Must be non empty"))
+
+def composition(validators: InputValidator*): InputValidator = input =>
+  validators
+    .map(_(input))
+    .collectFirst({ case err @ Left(_) => err })
+    .getOrElse(Right(input))

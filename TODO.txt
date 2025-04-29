@@ -5,4 +5,3 @@ see TODO in NumeratedListView#renderCompetencies for details
 4 Add version or hash of source file at export results. This will be helpful in future if export
 results will be compared and knowledges were computed from 2 different competency source files, so
 diff will be incorrect in some way
-5 Add popup info on vailed input validation

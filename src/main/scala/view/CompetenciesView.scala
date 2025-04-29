@@ -22,11 +22,16 @@ import view.CompetenciesView.ViewState
 
 val log: Logger = Logger(classOf[CompetenciesView])
 
-private val SelectedItemStyle: Style = Style(bg = Some(Color.White))
-private val CrossedItemStyle: Style = Style(addModifier = Modifier.CROSSED_OUT)
-private val FootlineItemStyle: Style = Style(bg = Some(Color.Blue))
+val SelectedItemStyle = Style(bg = Some(Color.White))
+val CrossedItemStyle = Style(addModifier = Modifier.CROSSED_OUT)
+val FootlineItemStyle = Style(bg = Some(Color.Blue))
 
-private val EmptySpans = Spans.nostyle("")
+val EmptySpans = Spans.nostyle("")
+
+val IncorrectInput = "Incorrect input"
+val EstimationPercentValidator = composition(notEmptyValidator, onlyDigitsValidator, numRangeValidator(0, 100))
+val CompetencyNameValidator = notEmptyValidator
+val QAQuestionValidator = notEmptyValidator
 
 class CompetenciesView private (
     val cntrl: CompetenciesController,
@@ -422,21 +427,16 @@ class CompetenciesView private (
       case _: KeyCode.Esc => focusChanged(focusOnClose)
 
       // Input symbols
-      case symb: KeyCode.Char =>
-        onlyDigitsValidator(String.valueOf(symb.c)) match
-          // Incorrect input. TODO render error message
-          case Left(err) => focusChanged(focusOnClose)
-          // OK, add symbol to input
-          case Right(_) => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
+      case symb: KeyCode.Char => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
       // Delete one input symbol
       case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
 
       // Submit input
       case _: KeyCode.Enter =>
-        numRangeValidator(0, 100)(focus.input) match
-          // Incorrect input. TODO render error message
-          case Left(err) => focusChanged(focusOnClose)
+        EstimationPercentValidator(focus.input) match
+          // Incorrect input
+          case Left(err) => focusChanged(Focus.Popup(PopupType.ShowInfo(IncorrectInput, err.reason, focusOnClose)))
           // OK, estimate competency
           case Right(input) => onInputSubmit(input)
 
@@ -483,16 +483,16 @@ class CompetenciesView private (
 
       // Create competency
       case _: KeyCode.Enter =>
-        cntrl.createCompetency(parentOfCreated, focus.input)
-        focusChanged(Focus.Competencies)
+        CompetencyNameValidator(focus.input) match
+          // Incorrect input
+          case Left(err) =>
+            focusChanged(Focus.Popup(PopupType.ShowInfo(IncorrectInput, err.reason, Focus.Competencies)))
+          case Right(_) =>
+            cntrl.createCompetency(parentOfCreated, focus.input)
+            focusChanged(Focus.Competencies)
 
       // Input symbols
-      case symb: KeyCode.Char =>
-        notEmptyValidator(String.valueOf(symb.c)) match
-          // Incorrect input. TODO render error message
-          case Left(err) => focusChanged(Focus.Competencies)
-          // OK, add symbol to input
-          case Right(gotInput) => focusChanged(Focus.Popup(focus.kind, focus.input + gotInput))
+      case symb: KeyCode.Char => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
       // Delete one input symbol
       case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
@@ -509,21 +509,17 @@ class CompetenciesView private (
 
       // Create QA
       case _: KeyCode.Enter =>
-        notEmptyValidator(focus.input) match
-          // Incorrect input. TODO render error message
-          case Left(err) => focusChanged(Focus.QAs)
+        QAQuestionValidator(focus.input) match
+          // Incorrect input
+          case Left(err) =>
+            focusChanged(Focus.Popup(PopupType.ShowInfo(IncorrectInput, err.reason, Focus.Competencies)))
           // OK, create QA
           case Right(question) =>
             cntrl.createQA(state.selected.competency, question)
             if state.selected.qaIndex.isDefined then focusChanged(Focus.QAs) else focusChanged(Focus.Competencies)
 
       // Input symbols
-      case symb: KeyCode.Char =>
-        notEmptyValidator(String.valueOf(symb.c)) match
-          // Incorrect input. TODO render error message
-          case Left(err) => focusChanged(Focus.QAs)
-          // OK, add symbol to input
-          case Right(gotInput) => focusChanged(Focus.Popup(focus.kind, focus.input + gotInput))
+      case symb: KeyCode.Char => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
       // Delete one input symbol
       case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
