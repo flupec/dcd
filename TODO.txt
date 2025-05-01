@@ -5,3 +5,17 @@ see TODO in NumeratedListView#renderCompetencies for details
 4 Add version or hash of source file at export results. This will be helpful in future if export
 results will be compared and knowledges were computed from 2 different competency source files, so
 diff will be incorrect in some way
+5 Generate competencies source file descriptor at export process. Because export produces only
+competency numerations, we need full information about source file (competency names, maximum points etc)
+6 Provide question estimations at export data
+7 Support taking notes on competency at main view
+8 Provide notes data in export result
+9 Use JFreeChart to export competency results to PDF. Competency results should contain:
+    9.1 SpiderWebPlot of each competency layer, but generate plot only for existing estimations. 
+    9.2 SpiderWebPlot of each competency layer, on each plot must be placed many interview candidates
+        estimations, so we can compare them
+10 Introduce command to cli arguments. There will be at least 2 commands:
+    10.1 estimate. Arguments is sourceFile (-f) and candidate (-l). This is interactive cli.
+         Invocation example: dcd estimate -f example.dcd -l Smith
+    10.2 report. Arguments is reportSourceFile(many -f) and TODO. This is non-interactive cli.
+         Invocation example: dcd report -f Avtaev-10.12.2025.json -f Smith-11.12.2025.json
