@@ -26,7 +26,7 @@ given MessageShow = LogBar.updateLogs
     competenciesFilepath: Path <- getCliArg("-f", args.toList)
     candidateLastname: String <- getCliArg("-l", args.toList)
     competencies <- readCompetencies(competenciesFilepath.toFile)
-    resultMgmt = ResultMgmtImpl(competenciesFilepath, Interviewee(candidateLastname), result.fsExportTgtLocator)
+    resultMgmt = ResultMgmtImpl(competencies, Interviewee(candidateLastname))
     controller = CompetenciesControllerImpl(resultMgmt, competencies)
     competenciesView = CompetenciesView(controller)
     viewController = view.ViewController(competenciesView, LogBar)

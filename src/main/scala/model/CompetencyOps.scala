@@ -111,7 +111,7 @@ def insertCompetency(top: Competencies, parent: Option[Numeration], name: String
     // None means no parent => insert at top
     case None => top.map(_.numeration).sorted(using NumerationOrdering).lastOption.map(_.next).getOrElse(Vector(1))
     case Some(parent) =>
-      val tgtParent = top.flatMap(flatten(_)).find(_.numeration == parent) match
+      val tgtParent = top.flatMap(_.flatten).find(_.numeration == parent) match
         case None    => return top
         case Some(p) => p
       tgtParent.childs.map(_.numeration).sorted(using NumerationOrdering).lastOption match
@@ -134,10 +134,6 @@ private def userCreatedCompetency(n: Numeration, name: String) = Competency(
   qa = Seq.empty,
   childs = Seq.empty
 )
-
-private def flatten(competency: Competency): Competencies =
-  val childs = if competency.childs.nonEmpty then competency.childs.flatMap(flatten(_)) else Seq.empty
-  childs :+ competency
 
 def qaInserter(question: String): Updater = (competency) =>
   val tgt = QA(question = question, answer = None)

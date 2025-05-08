@@ -5,8 +5,10 @@ see TODO in NumeratedListView#renderCompetencies for details
 4 Add version or hash of source file at export results. This will be helpful in future if export
 results will be compared and knowledges were computed from 2 different competency source files, so
 diff will be incorrect in some way
-5 Generate competencies source file descriptor at export process. Because export produces only
-competency numerations, we need full information about source file (competency names, maximum points etc)
+5 [DONE] Generate competencies source file descriptor at export process. Because export produces only
+competency numerations, we need full information about source file (competency names, maximum points etc).
+That means that we need calculate hash of file to distinguish between different states of files and save
+hash and filename.
 6 Provide question estimations at export data
 7 Support taking notes on competency at main view
 8 Provide notes data in export result

@@ -19,8 +19,6 @@ class Competency(
 
   override def hashCode: Int = numeration.hashCode
 
-  override def toString: String = s"{numeration=$numeration, childs=$childs}"
-
   def copy(
       childs: Competencies = childs,
       estimate: KnowledgeEstimate = estimate,
@@ -32,6 +30,10 @@ class Competency(
     childs = childs,
     estimate = estimate
   )
+
+  def flatten: Competencies =
+    val childs = if this.childs.nonEmpty then this.childs.flatMap(_.flatten) else Seq.empty
+    childs :+ this
 end Competency
 
 case class QA(
