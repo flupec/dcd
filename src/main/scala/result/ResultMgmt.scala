@@ -6,6 +6,7 @@ import model.Competency
 import model.KnowledgeComputed
 import model.QA
 import upickle.default.writeTo
+import upickle.default.read
 
 import java.io.File
 import java.io.FileWriter
@@ -30,12 +31,7 @@ trait ResultMgmt:
       competenciesKnowledge: Seq[KnowledgeComputed],
       qaKnowledges: Seq[QAKnowledgeResult]
   ): Either[ResultExportError, Unit]
-
-  /** Import competency estimation results
-    *
-    * @param from import file
-    */
-  def doImport(from: File): Either[ResultImportError, Seq[KnowledgeComputed]]
+end ResultMgmt
 
 // Responsible for export path determination.  Used for different path resolving strategies and testing
 type ExportDirLocator = () => Either[ResultExportError, Path]
@@ -103,8 +99,6 @@ class ResultMgmtImpl(
     maxPoints = k.maxPoints,
     receivedPoints = k.receivedPoints
   )
-
-  override def doImport(from: File): Either[ResultImportError, Seq[KnowledgeComputed]] = ???
 end ResultMgmtImpl
 
 object ResultMgmtImpl:
@@ -165,4 +159,10 @@ object ResultMgmtImpl:
   // TODO
   // @tailrec
   // private def restoreBannedChars(tgt: String, restoreWith: Map[String, (String, String)]): String = ???
+
+  def doImport(results: Seq[File], descriptor: File): Either[ResultImportError, (Seq[Result], SourceDescriptor)] =
+    val rs: Seq[Result] = results.map(read(_))
+    val desc: SourceDescriptor = read(descriptor)
+    // TODO error handling
+    return Right(rs, desc)
 end ResultMgmtImpl
