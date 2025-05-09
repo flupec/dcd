@@ -9,7 +9,7 @@ diff will be incorrect in some way
 competency numerations, we need full information about source file (competency names, maximum points etc).
 That means that we need calculate hash of file to distinguish between different states of files and save
 hash and filename.
-6 Provide question estimations at export data
+6 [DONE] Provide question estimations at export data
 7 Support taking notes on competency at main view
 8 Provide notes data in export result
 9 Use JFreeChart to export competency results to PDF. Competency results should contain:

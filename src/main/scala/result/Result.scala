@@ -12,7 +12,7 @@ import upickle.default.macroRW
   */
 case class SourceDescriptor(
     competencies: Map[Numeration, CompetencyDescriptor],
-    hash: String,
+    hash: String
 )
 
 object SourceDescriptor:
@@ -39,7 +39,8 @@ object QADescriptor:
 case class Result(
     sourceDescriptorHash: String,
     candidate: Interviewee,
-    competencyResults: Seq[CompetencyKnowledgeResult]
+    competencyResults: Seq[CompetencyKnowledgeResult],
+    qaResults: Seq[QAKnowledgeResult]
 )
 
 object Result:
@@ -56,12 +57,25 @@ object Interviewee:
 // Knowledge results
 case class CompetencyKnowledgeResult(
     // Competency numeration
-    val numeration: Numeration,
+    numeration: Numeration,
     // Maximum possible points for competency
-    val maxPoints: Float,
+    maxPoints: Float,
     // Points received by interviewee
-    val receivedPoints: Float
+    receivedPoints: Float
 )
 
 object CompetencyKnowledgeResult:
   given ReadWriter[CompetencyKnowledgeResult] = macroRW
+
+// Question knowledge estimation result
+case class QAKnowledgeResult(
+    // Competency id
+    competency: Numeration,
+    // Index of qa in competency
+    idx: Int,
+    // Estimation of this question
+    estimate: Int
+)
+
+object QAKnowledgeResult:
+  given ReadWriter[QAKnowledgeResult] = macroRW

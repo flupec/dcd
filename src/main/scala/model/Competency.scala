@@ -57,7 +57,7 @@ enum KnowledgeEstimate derives CanEqual:
   // Will be used at knowledge computation
   case Answered(val percent: Int)
 
-// Meaningful only for competencies
+// Meaningful only for competencies, questions knowledge provided as-is since there are no tree structure in questions
 class KnowledgeComputed(
     // Numeration of competency knowledge
     val numeration: Numeration,

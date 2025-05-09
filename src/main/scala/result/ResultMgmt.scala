@@ -24,9 +24,12 @@ trait ResultMgmt:
 
   /** Export competency estimation results
     *
-    * @param tgt export target
+    * @param competenciesKnowledge competencies knowledge to export
     */
-  def doExport(tgt: Seq[KnowledgeComputed]): Either[ResultExportError, Unit]
+  def doExport(
+      competenciesKnowledge: Seq[KnowledgeComputed],
+      qaKnowledges: Seq[QAKnowledgeResult]
+  ): Either[ResultExportError, Unit]
 
   /** Import competency estimation results
     *
@@ -65,8 +68,11 @@ class ResultMgmtImpl(
     private val descriptorLocator: ExportTgtLocator
 ) extends ResultMgmt:
 
-  override def doExport(tgt: Seq[KnowledgeComputed]): Either[ResultExportError, Unit] =
-    val result = exportResult(tgt)
+  override def doExport(
+      competenciesKnowledge: Seq[KnowledgeComputed],
+      qaKnowledges: Seq[QAKnowledgeResult]
+  ): Either[ResultExportError, Unit] =
+    val result = exportResult(competenciesKnowledge, qaKnowledges)
     for
       descriptorWriter <- descriptorLocator(result.candidate)
       resultWriter <- resultLocator(result.candidate)
@@ -85,10 +91,11 @@ class ResultMgmtImpl(
       writeTo(result, resFw, indent = 2)
     return written.toEither.left.map(e => ResultExportError.FileOpErr(e.getMessage))
 
-  private def exportResult(ks: Seq[KnowledgeComputed]) = Result(
+  private def exportResult(ks: Seq[KnowledgeComputed], qaKnowledges: Seq[QAKnowledgeResult]) = Result(
     sourceDescriptorHash = sourceDescriptor.hash,
     candidate = candidate,
-    competencyResults = ks.map(toKnowledgeResult(_))
+    competencyResults = ks.map(toKnowledgeResult(_)),
+    qaResults = qaKnowledges
   )
 
   private def toKnowledgeResult(k: KnowledgeComputed) = CompetencyKnowledgeResult(
@@ -157,5 +164,5 @@ object ResultMgmtImpl:
 
   // TODO
   // @tailrec
-  private def restoreBannedChars(tgt: String, restoreWith: Map[String, (String, String)]): String = ???
+  // private def restoreBannedChars(tgt: String, restoreWith: Map[String, (String, String)]): String = ???
 end ResultMgmtImpl

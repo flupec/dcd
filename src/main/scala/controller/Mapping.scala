@@ -1,5 +1,8 @@
 package controller
 
+import model.KnowledgeEstimate
+import result.QAKnowledgeResult
+
 private def toKnowledgeTest(kc: view.KnowledgeCompleteness): model.KnowledgeTest =
   model.KnowledgeTest(estimate = toModelEstimate(kc))
 
@@ -38,3 +41,12 @@ def toKnowledgeComputedView(kc: model.KnowledgeComputed): view.KnowledgeComputed
       kc.overridenBy.map(_.numeration),
       kc.synthetic
     )
+
+def toQAKnowledgeResult(c: model.Competency): Seq[QAKnowledgeResult] = c.qa.zipWithIndex
+  .map((qa, qaIdx) => (qaIdx, qaKnowledgeEstimate(qa)))
+  .filter(_._2.isDefined)
+  .map((qaIdx, estimate) => QAKnowledgeResult(c.numeration, qaIdx, estimate.get))
+
+private def qaKnowledgeEstimate(q: model.QA): Option[Int] = q.knowledgeTest.estimate match
+  case KnowledgeEstimate.NotMentioned      => None
+  case KnowledgeEstimate.Answered(percent) => Some(percent)

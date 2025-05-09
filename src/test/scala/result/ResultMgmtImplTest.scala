@@ -22,7 +22,7 @@ class ResultMgmtImplTest extends FunSuite:
       exportResultLocator(resultTgt, _),
       sourceDescriptorLocator(descriptorTgt, _)
     )
-    val out = sut.doExport(Vector.empty)
+    val out = sut.doExport(Vector.empty, Vector.empty)
     assert(out.isRight)
 
   test("Result export must contain expected json results"):
@@ -44,7 +44,7 @@ class ResultMgmtImplTest extends FunSuite:
         synthetic = false
       )
     )
-    val out = sut.doExport(knowlResults)
+    val out = sut.doExport(knowlResults, Vector.empty)
     assert(out.isRight)
     assertExportResult(resultTgt.toString, knowlResults)
     assertExportedDescriptor(descriptorTgt.toString, src)

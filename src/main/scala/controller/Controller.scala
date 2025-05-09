@@ -62,10 +62,10 @@ class CompetenciesControllerImpl(
     toView(state)
 
   override def computedKnowledges: Map[Numeration, view.KnowledgeComputed] =
-    val modelKnowledges = computedModelKnowledges
+    val modelKnowledges = computedCompetencyKnowledges
     return modelKnowledges.view.mapValues(toKnowledgeComputedView(_)).toMap
 
-  private def computedModelKnowledges: Map[Numeration, KnowledgeComputed] =
+  private def computedCompetencyKnowledges: Map[Numeration, KnowledgeComputed] =
     val roots = state.filter(_.numeration.size == 1)
     val knowledges: Seq[Map[Numeration, KnowledgeComputed]] = roots.map(computeKnowledge(_))
     val merged = knowledges.reduce((l, r) => l concat r)
@@ -79,5 +79,8 @@ class CompetenciesControllerImpl(
     state = updateCompetencies(state, byNumeration(competency), qaInserter(question))
     toView(state)
 
-  override def exportKnowledges: Unit = resultMgmt.doExport(computedModelKnowledges.values.toList)
+  override def exportKnowledges: Unit =
+    val competencyKnowl = computedCompetencyKnowledges.values.toList
+    val qaKnowl = state.flatMap(_.flatten).flatMap(toQAKnowledgeResult)
+    resultMgmt.doExport(competencyKnowl, qaKnowl)
 end CompetenciesControllerImpl
