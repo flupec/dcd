@@ -89,17 +89,24 @@ object ReportGenerator:
           .get(k.numeration)
           .map(_.name)
           .fold(Left(ReportError.GenerateError))(Right(_))
-          .map(name => (k.receivedPoints, name))
+          .map(name => (k.receivedPoints, k.maxPoints, name))
       .sequenceRight
       .map: knowlData =>
-        // TODO if knowlData has less than 3 items, then add 2 or 1 fake item to see good SpiderWebPlot, not line or point
-        val ds = DefaultCategoryDataset()
-        // Add value to plot for each knowledge
-        knowlData.foreach((points, competency) => ds.addValue(points, r.candidate.lastname, competency))
-        val plot = SpiderWebPlot(ds)
+        val plot = SpiderWebPlot(constructKnowledgeDataset(knowlData, r))
         plot.setLabelFont(Font(Font.MONOSPACED, Font.BOLD, 16))
         IndividualReport.CompetencySpider(parentCompetency, JFreeChart(plot))
   end generateCompetencyChart
+
+  private def constructKnowledgeDataset(knowlData: Seq[(Float, Float, String)], r: Result): DefaultCategoryDataset =
+    val ds = DefaultCategoryDataset()
+    // if knowlData has less than 3 items, then add 2 or 1 fake item to see good SpiderWebPlot, not line or point
+    if knowlData.size < 3 then
+      val max = knowlData.map((_, maxPoints, _) => maxPoints).max
+      for i <- 0 until knowlData.size do ds.addValue(max, r.candidate.lastname, "")
+    // Add value to plot for each knowledge
+    knowlData.foreach((points, _, competency) => ds.addValue(points, r.candidate.lastname, competency))
+    return ds
+  end constructKnowledgeDataset
 
   private def insertIndividualReports(
       pdf: Document,
