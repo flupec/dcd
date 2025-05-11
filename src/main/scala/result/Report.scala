@@ -52,7 +52,7 @@ object ReportGenerator:
   private def initPdfTarget(tgtProvider: ReportTgtProvider): Either[ReportError, Document] =
     val pdf = Document()
     Try(PdfWriter.getInstance(pdf, tgtProvider())) match
-      case Failure(_) => Left(ReportError.GenerateError)
+      case Failure(err) => Left(ReportError.Unexpected(err.getMessage))
       case Success(_) =>
         pdf.open()
         Right(pdf)
@@ -96,7 +96,7 @@ object ReportGenerator:
         s.competencies
           .get(k.numeration)
           .map(_.name)
-          .fold(Left(ReportError.GenerateError))(Right(_))
+          .fold(Left(ReportError.notFoundNumeration(k.numeration)))(Right(_))
           .map(name => (k.receivedPoints, k.maxPoints, name))
       .sequenceRight
       .map: knowlData =>
@@ -161,7 +161,7 @@ object ReportGenerator:
   private def getPdfImage(c: JFreeChart, sz: (Int, Int)): Either[ReportError, Image] =
     val img = c.createBufferedImage(1024, 1024)
     return Try(Image.getInstance(img, null)).toEither.left
-      .map(_ => ReportError.GenerateError)
+      .map(e => ReportError.Unexpected(e.getMessage))
       .map: img =>
         img.scaleToFit(sz._1.floatValue, sz._2.floatValue)
         img

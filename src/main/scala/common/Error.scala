@@ -35,10 +35,16 @@ enum ParseError extends Error:
 end ParseError
 
 enum ReportError extends Error derives CanEqual:
-  case GenerateError
+  case Unexpected(report: String)
+  case InconsistentSourceDescriptor(report: String)
 
   override def reason: String = this match
-    case GenerateError => "Cannot generate report file"
+    case Unexpected(report)                   => s"Cannot generate report file: $report"
+    case InconsistentSourceDescriptor(report) => s"Inconsistent source descriptor: $report"
+end ReportError
+
+object ReportError:
+  def notFoundNumeration(n: Numeration) = InconsistentSourceDescriptor(s"Cannot find competency with $n numeration")
 end ReportError
 
 enum ResultExportError extends Error:
