@@ -15,7 +15,7 @@ class ResultMgmtImplTest extends FunSuite:
 
   test("Result export must succeed"):
     val (resultTgt, descriptorTgt) = (StringWriter(), StringWriter())
-    val sut = ResultMgmtImpl(
+    val sut = ResultExporter(
       Seq.empty,
       Candidate,
       exportDirLocator,
@@ -28,7 +28,7 @@ class ResultMgmtImplTest extends FunSuite:
   test("Result export must contain expected json results"):
     val (resultTgt, descriptorTgt) = (StringWriter(), StringWriter())
     val src = Vector(Competency(numeration = Vector(1), name = "name", Seq.empty, Seq.empty))
-    val sut = ResultMgmtImpl(
+    val sut = ResultExporter(
       src,
       Candidate,
       exportDirLocator,
