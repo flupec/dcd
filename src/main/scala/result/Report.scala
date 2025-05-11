@@ -107,7 +107,6 @@ object ReportGenerator:
         IndividualReport.CompetencySpider(parentCompetency, chart)
   end generateCompetencyChart
 
-  // private def getChartFont(size: Int) = Font(Font.MONOSPACED, Font.BOLD, size)
   private def getChartFont(size: Int) = Font("Helvetica", Font.BOLD, size)
 
   private def constructKnowledgeDataset(knowlData: Seq[(Float, Float, String)], r: Result): DefaultCategoryDataset =
