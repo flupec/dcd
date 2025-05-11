@@ -15,7 +15,6 @@ import org.jfree.chart.JFreeChart
 import org.jfree.chart.plot.SpiderWebPlot
 import org.jfree.chart.title.TextTitle
 import org.jfree.data.category.DefaultCategoryDataset
-import result.ReportGenerator.fileReportTarget
 
 import java.awt.Color
 import java.awt.Font
@@ -66,11 +65,11 @@ object ReportGenerator:
   ): Either[ReportError, Unit] = src.map(generator(_, descriptor)).sequenceRight.map(_ => ())
 
   // TODO IMPL ME
-  private def generateComparisonReport(
-      generator: ComparisonReportGenerator,
-      src: Seq[Result],
-      descriptor: SourceDescriptor
-  ): Either[ReportError, Unit] = generator(src, descriptor)
+  // private def generateComparisonReport(
+  //     generator: ComparisonReportGenerator,
+  //     src: Seq[Result],
+  //     descriptor: SourceDescriptor
+  // ): Either[ReportError, Unit] = generator(src, descriptor)
 
   private def individualGenerator(pdf: Document): IndividualReportGenerator = (r, s) =>
     val resultsByNestLevel = r.competencyResults.groupBy(_.numeration.size)
@@ -180,23 +179,8 @@ object ReportGenerator:
     return table
 
   // TODO IMPL ME
-  private def comparisonGenerator(pdf: Document): ComparisonReportGenerator = (rs, s) => ???
+  // private def comparisonGenerator(pdf: Document): ComparisonReportGenerator = (rs, s) => ???
 
   private enum IndividualReport:
     case CompetencySpider(competency: String, chart: JFreeChart, chartImg: Option[Image] = None)
 end ReportGenerator
-
-@main def main =
-  val imported = ResultMgmtImpl.doImport(
-    Vector(
-      Path.of("/home/flupec/coding-projects/dcd/dcd/Avtaev-2025-05-10.json").toFile,
-      Path.of("/home/flupec/coding-projects/dcd/dcd/Torbinsky-2025-05-11.json").toFile
-    ),
-    Path.of("/home/flupec/coding-projects/dcd/dcd/descriptor-9KsLOY.json").toFile
-  )
-  imported match
-    case Left(value) => println(s"Import error! $value")
-    case Right((results, source)) =>
-      ReportGenerator.generate(results, source, fileReportTarget(Path.of("/tmp/test.pdf"))) match
-        case Left(value)  => println(s"Error! Error=$value")
-        case Right(value) => println("Success")

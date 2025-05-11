@@ -5,5 +5,3 @@ enum ReportError extends Error derives CanEqual:
 
   override def reason: String = this match
     case GenerateError => "Cannot generate report file"
-    
-  

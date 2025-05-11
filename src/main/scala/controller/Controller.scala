@@ -10,7 +10,7 @@ import model.insertCompetency
 import model.qaInserter
 import model.qaKnowledgeUpdater
 import model.updateCompetencies
-import result.ResultMgmt
+import result.ResultExporter
 import view.CompetencyView
 import view.KnowledgeCompleteness
 
@@ -40,7 +40,7 @@ trait CompetenciesController:
 end CompetenciesController
 
 class CompetenciesControllerImpl(
-    private val resultMgmt: ResultMgmt,
+    private val resultMgmt: ResultExporter,
     private var state: Competencies
 ) extends CompetenciesController:
 

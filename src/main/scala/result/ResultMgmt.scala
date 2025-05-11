@@ -1,12 +1,13 @@
 package result
 
+import common.EitherExtension.sequenceRight
 import common.ResultExportError
 import common.ResultImportError
 import model.Competency
 import model.KnowledgeComputed
 import model.QA
-import upickle.default.writeTo
 import upickle.default.read
+import upickle.default.writeTo
 
 import java.io.File
 import java.io.FileWriter
@@ -18,20 +19,15 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Base64
 import scala.annotation.tailrec
+import scala.util.Try
 import scala.util.Using
 
-/** Responsible for import/export of competency estimation results */
-trait ResultMgmt:
+type Exporter = (
+    competenciesKnowledge: Seq[KnowledgeComputed],
+    qaKnowledge: Seq[QAKnowledgeResult]
+) => Either[ResultExportError, Unit]
 
-  /** Export competency estimation results
-    *
-    * @param competenciesKnowledge competencies knowledge to export
-    */
-  def doExport(
-      competenciesKnowledge: Seq[KnowledgeComputed],
-      qaKnowledges: Seq[QAKnowledgeResult]
-  ): Either[ResultExportError, Unit]
-end ResultMgmt
+type Importer = (results: Seq[File], descriptor: File) => Either[ResultImportError, (Seq[Result], SourceDescriptor)]
 
 // Responsible for export path determination.  Used for different path resolving strategies and testing
 type ExportDirLocator = () => Either[ResultExportError, Path]
@@ -57,14 +53,14 @@ def sourceDescriptorLocator(l: ExportDirLocator, sourceHash: String): ExportTgtL
     val filename = s"descriptor-$shortenedHash.json"
     Right(FileWriter(exportDir.resolve(filename).toFile))
 
-class ResultMgmtImpl(
+class ResultExporter(
     private val sourceDescriptor: SourceDescriptor,
     private val candidate: Interviewee,
     private val resultLocator: ExportTgtLocator,
     private val descriptorLocator: ExportTgtLocator
-) extends ResultMgmt:
+):
 
-  override def doExport(
+  def doExport(
       competenciesKnowledge: Seq[KnowledgeComputed],
       qaKnowledges: Seq[QAKnowledgeResult]
   ): Either[ResultExportError, Unit] =
@@ -99,9 +95,9 @@ class ResultMgmtImpl(
     maxPoints = k.maxPoints,
     receivedPoints = k.receivedPoints
   )
-end ResultMgmtImpl
+end ResultExporter
 
-object ResultMgmtImpl:
+object ResultExporter:
 
   // We want to use base64 encoded hash as substring in filename but, for example, '/' is path separator, so replace it
   // Replaceable -> (replaceable, replacer) mapping
@@ -118,7 +114,7 @@ object ResultMgmtImpl:
     val sourceDescriptor = competencyDescriptor(sourceCompetencies, hash)
     val resultLocator = exportResultLocator(dirLocator)
     val descriptorLocator = sourceDescriptorLocator(dirLocator, hash)
-    new ResultMgmtImpl(sourceDescriptor, candidate, resultLocator, descriptorLocator)
+    new ResultExporter(sourceDescriptor, candidate, resultLocator, descriptorLocator)
 
   def apply(
       sourceCompetencies: Seq[Competency],
@@ -129,7 +125,7 @@ object ResultMgmtImpl:
   ) =
     val hash = computeHash(sourceCompetencies)
     val sourceDescriptor = competencyDescriptor(sourceCompetencies, hash)
-    new ResultMgmtImpl(sourceDescriptor, candidate, resultLocator, descriptorLocator)
+    new ResultExporter(sourceDescriptor, candidate, resultLocator, descriptorLocator)
 
   private def computeHash(source: Seq[Competency]): String =
     val hash = MessageDigest.getInstance("SHA-256").digest(source.toString.getBytes(StandardCharsets.UTF_8))
@@ -159,10 +155,15 @@ object ResultMgmtImpl:
   // TODO
   // @tailrec
   // private def restoreBannedChars(tgt: String, restoreWith: Map[String, (String, String)]): String = ???
+end ResultExporter
 
+object ResultImporter:
   def doImport(results: Seq[File], descriptor: File): Either[ResultImportError, (Seq[Result], SourceDescriptor)] =
-    val rs: Seq[Result] = results.map(read(_))
-    val desc: SourceDescriptor = read(descriptor)
-    // TODO error handling
-    return Right(rs, desc)
-end ResultMgmtImpl
+    val rs: Seq[Try[Result]] = results.map(f => Try(read(f)))
+    val desc: Try[SourceDescriptor] = Try(read(descriptor))
+    for
+      r <- rs.map(_.toEither).sequenceRight.left.map(e => ResultImportError.FileOpErr(e.getMessage))
+      d <- desc.toEither.left.map(e => ResultImportError.FileOpErr(e.getMessage))
+    yield ((r -> d))
+  end doImport
+end ResultImporter
