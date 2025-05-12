@@ -11,7 +11,6 @@ import tui.crossterm.KeyCode
 import tui.widgets.BlockWidget
 import tui.widgets.BlockWidget.BorderType
 import tui.widgets.ParagraphWidget
-import tui.widgets.ParagraphWidget.Wrap
 
 class LogView(
     var logs: Seq[String] = Vector.empty

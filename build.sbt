@@ -1,4 +1,4 @@
-val scala3Version = "3.6.2"
+val scala3Version = "3.7.0"
 
 scalacOptions ++= Seq(
   "-Xlint:unused",
