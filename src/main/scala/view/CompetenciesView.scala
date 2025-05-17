@@ -240,8 +240,8 @@ class CompetenciesView private (
     val header = CompetenciesView
       .competencyHeader(c, knowledges)
       .withPatchedStyle(selectedStyle)
-      .bounded(at)
-    return ListWidget.Item(content = header)
+      .trimmed(at)
+    return ListWidget.Item(content = Text.from(header))
 
   private def competenciesAtLevel(level: Int): Seq[CompetencyView] =
     CompetenciesView.competenciesAtLevel(cntrl.competencies, level)
@@ -287,8 +287,8 @@ class CompetenciesView private (
       else Style.DEFAULT
     val header = qaHeader(c, qaIdx, knowledges)
       .withPatchedStyle(selectedStyle)
-      .bounded(at)
-    return ListWidget.Item(content = header)
+      .trimmed(at)
+    return ListWidget.Item(content = Text.from(header))
   end qaListItem
 
   private def renderPopup(frame: Frame, at: Rect) =
@@ -304,7 +304,7 @@ class CompetenciesView private (
         case PopupType.CompetencyInsert         => popupCompetencyCreateWidget(popup)
         case PopupType.QACreate                 => popupQACreateWidget(popup)
         case PopupType.QAShowAnswer             => qaAnswerWidget(at)
-        case PopupType.ShowInfo(title, body, _) => popupInfoWidget(at, title, body)
+        case PopupType.ShowInfo(title, body, _) => popupInfoWidget(at, title, Text.nostyle(body))
 
     widget.foreach: popupWidget =>
       frame.renderWidget(ClearWidget, at)
@@ -335,7 +335,7 @@ class CompetenciesView private (
         ("ENTER", "Estimate"),
         ("DEL", "Erase estimate"),
         ("F1", "Create QA"),
-        ("F2", "Show answer"),
+        ("F2", "Show detailed"),
         ("F10", "Export results"),
         ("TAB", "Switch"),
         ("F12", "Exit")
@@ -385,13 +385,25 @@ class CompetenciesView private (
       height = ysize
     )
 
-  private def qaAnswerWidget(at: Rect) = popupInfoWidget(
-    at,
-    "Answer",
-    state.selected.qaIndex.flatMap(qa => currentCompetency.questions(qa).answerBody).getOrElse("")
-  )
+  private def qaAnswerWidget(at: Rect): ParagraphWidget =
+    val info = state.selected.qaIndex
+      .map(currentCompetency.questions(_))
+      .map(qa => (q = qa.questionBody, ans = qa.answerBody))
+      .getOrElse("")
+    return info match
+      case _: String => popupInfoWidget(at, "Q&A", Text(Array.empty))
+      case ((q: String, ans: Option[String])) =>
+        val infoText = Text(
+          Array(
+            Spans.nostyle("Q: " + q),
+            EmptySpans,
+            ans.map(a => Spans.nostyle("A: " + a)).getOrElse(EmptySpans)
+          )
+        )
+        popupInfoWidget(at, "Q&A", infoText)
+  end qaAnswerWidget
 
-  private def popupInfoWidget(at: Rect, title: String, info: String): ParagraphWidget =
+  private def popupInfoWidget(at: Rect, title: String, info: Text): ParagraphWidget =
     val titleTxt = Spans.nostyle(title)
     val border = BlockWidget(
       title = Some(titleTxt),
@@ -399,9 +411,8 @@ class CompetenciesView private (
       borders = Borders.ALL,
       borderType = BorderType.Thick
     )
-    val paragraph = Array(Spans.from(Span.nostyle(info)))
     return ParagraphWidget(
-      text = Text(paragraph),
+      text = info,
       block = Some(border),
       alignment = Alignment.Left,
       wrap = Some(Wrap(true))

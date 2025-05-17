@@ -9,36 +9,28 @@ import tui.Text
 extension (span: Span) infix def concat(another: Span) = span.copy(content = span.content.concat(another.content))
 
 extension (spans: Spans)
-  /** Wrap these spans to meet bound criteria */
-  def bounded(bound: Rect): Text = toText(bound.width)
+  /** Trim these spans to meet bound criteria */
+  def trimmed(bound: Rect): Spans = trimmed(bound.width)
 
-  /** Wrap these spans to text (multiline spans) if content exceeds maxW limit */
-  def toText(maxW: Int): Text =
-    val lines = scala.collection.mutable.ListBuffer.empty[Spans]
-    var (spanIdx, col, wrapTgt) = (0, 0, spans.copy().spans)
-
-    while spanIdx < wrapTgt.length do
-      val currSpan = wrapTgt(spanIdx)
-      val lineFits = maxW - col
-      if currSpan.width <= lineFits then
-        lines.lastOption match
-          case None                => lines.addOne(Spans.from(currSpan))
-          case Some(_) if col == 0 => lines.addOne(Spans.from(currSpan))
-          case Some(lineSpans)     => lines.update(lines.size - 1, lineSpans concat Spans.from(currSpan))
-        col = col + currSpan.width // Stays at same line
-        spanIdx = spanIdx + 1
-      else
-        val (fits, rest) = currSpan.content.splitAt(lineFits)
-        val fitsSpan = Span.styled(fits, currSpan.style)
-        val restSpan = Span.styled(rest, currSpan.style)
-        lines.lastOption match
-          case None if col == 0 => lines.addOne(Spans.from(fitsSpan))
-          case None             => lines.update(lines.size - 1, Spans.from(fitsSpan))
-          case Some(value)      => lines.update(lines.size - 1, Spans(value.spans appended fitsSpan))
-        wrapTgt(spanIdx) = restSpan
-        col = 0 // New line
-    return Text(lines.toArray)
-  end toText
+  def trimmed(maxW: Int): Spans =
+    require(maxW >= 1)
+    val maxWidth = maxW - 2 // Width + left bound char + right bound char
+    var width = 0
+    val trimmed =
+      for s <- spans.spans
+      yield
+        if width + s.width < maxWidth then
+          width += s.width
+          s
+        else
+          val fits = maxWidth - width
+          width += fits
+          val fitsContent = s.content.substring(0, fits)
+          val withDots = fitsContent.length match
+            case n if n <= 3 => ".".repeat(3)
+            case n           => fitsContent.substring(0, n - 3).concat(".".repeat(3))
+          Span(content = withDots, style = s.style)
+    return Spans(trimmed)
 
   infix def concat(another: Spans) = spans.copy(spans = spans.spans concat another.spans)
 
