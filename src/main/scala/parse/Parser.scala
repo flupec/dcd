@@ -312,7 +312,7 @@ object DcdParser:
   val AnswerDeclaration = '='
 
   // Punctuation and alphabetic symbols except .dcd specific identifiers
-  private val TextPattern: Pattern = Pattern.compile("[\\p{Print}&&[^!=#-]]")
+  private val TextPattern: Pattern = Pattern.compile("[\\p{Print}&&[^!=#-]]", Pattern.UNICODE_CHARACTER_CLASS)
 
   def isSpaceOrTabOrEOL(c: Char) = isSpaceOrTab(c) || isEOL(c)
   def isSpaceOrTab(c: Char) = c == ' ' || c == '\t' || c == '\r'
