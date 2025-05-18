@@ -34,6 +34,12 @@ class Competency(
   def flatten: Competencies =
     val childs = if this.childs.nonEmpty then this.childs.flatMap(_.flatten) else Seq.empty
     childs :+ this
+
+  def hashTarget: String = this.flatten
+    .sortBy(_.numeration)(using NumerationOrdering)
+    .map(c => s"num=${c.numeration},name=${c.name},qa=${qa.map(_.hashTarget)}")
+    .mkString
+
 end Competency
 
 case class QA(
@@ -42,6 +48,9 @@ case class QA(
     knowledgeTest: KnowledgeTest = KnowledgeTest()
 ):
   def withKnowledge(k: KnowledgeTest) = copy(knowledgeTest = k)
+
+  def hashTarget: String = s"q=$question,a=$answer,mp=${knowledgeTest.maxPoints}"
+end QA
 
 case class KnowledgeTest(
     // How many maximum points we can get for this knowledge

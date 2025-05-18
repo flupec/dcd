@@ -9,7 +9,7 @@ import java.io.StringWriter
 import java.io.Writer
 import java.nio.file.Path
 
-class ResultMgmtImplTest extends FunSuite:
+class ResultExporterTest extends FunSuite:
 
   val Candidate = Interviewee("Avtaev")
 

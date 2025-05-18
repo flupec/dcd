@@ -128,7 +128,8 @@ object ResultExporter:
     new ResultExporter(sourceDescriptor, candidate, resultLocator, descriptorLocator)
 
   private def computeHash(source: Seq[Competency]): String =
-    val hash = MessageDigest.getInstance("SHA-256").digest(source.toString.getBytes(StandardCharsets.UTF_8))
+    val hashTarget = source.map(_.hashTarget).mkString
+    val hash = MessageDigest.getInstance("SHA-256").digest(hashTarget.getBytes(StandardCharsets.UTF_8))
     val b64Hash = Base64.getEncoder.encodeToString(hash)
     return replaceBannedChars(b64Hash, Base64BannedChars)
 
