@@ -49,6 +49,26 @@ class ResultExporterTest extends FunSuite:
     assertExportResult(resultTgt.toString, knowlResults)
     assertExportedDescriptor(descriptorTgt.toString, src)
 
+  test("ResultExporter constructor must generate different hash for different competency sources"):
+    val (resultTgt, descriptorTgt) = (StringWriter(), StringWriter())
+    val src1 = Vector(Competency(numeration = Vector(1), name = "name1", Seq.empty, Seq.empty))
+    val src2 = Vector(Competency(numeration = Vector(1), name = "name2", Seq.empty, Seq.empty))
+    val descriptor1Hash = ResultExporter(
+      src1,
+      Candidate,
+      exportDirLocator,
+      exportResultLocator(resultTgt, _),
+      sourceDescriptorLocator(descriptorTgt, _)
+    ).sourceDescriptor.hash
+    val descriptor2Hash = ResultExporter(
+      src2,
+      Candidate,
+      exportDirLocator,
+      exportResultLocator(resultTgt, _),
+      sourceDescriptorLocator(descriptorTgt, _)
+    ).sourceDescriptor.hash
+    assertNotEquals(descriptor1Hash, descriptor2Hash)
+
   private def exportDirLocator(): Either[ResultExportError, Path] = Right(Path.of("/tmp/"))
 
   private def exportResultLocator(tgt: StringWriter, c: Interviewee): Either[ResultExportError, Writer] = Right(tgt)

@@ -54,8 +54,8 @@ def sourceDescriptorLocator(l: ExportDirLocator, sourceHash: String): ExportTgtL
     Right(FileWriter(exportDir.resolve(filename).toFile))
 
 class ResultExporter(
-    private val sourceDescriptor: SourceDescriptor,
-    private val candidate: Interviewee,
+    val sourceDescriptor: SourceDescriptor,
+    val candidate: Interviewee,
     private val resultLocator: ExportTgtLocator,
     private val descriptorLocator: ExportTgtLocator
 ):
