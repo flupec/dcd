@@ -101,7 +101,8 @@ object ReportGenerator:
       .sequenceRight
       .map: knowlData =>
         val plot = SpiderWebPlot(constructKnowledgeDataset(knowlData, r))
-        plot.setLabelFont(getChartFont(16))
+        plot.setLabelFont(getChartFont(18))
+        plot.setAxisLabelGap(-0.5d)
         val chart = JFreeChart(plot)
         chart.setSubtitles(List(TextTitle(parentCompetency, getChartFont(32))).asJava)
         IndividualReport.CompetencySpider(parentCompetency, chart)
@@ -116,9 +117,11 @@ object ReportGenerator:
       val max = knowlData.map((_, maxPoints, _) => maxPoints).max
       for i <- 0 until knowlData.size do ds.addValue(max, r.candidate.lastname, "")
     // Add value to plot for each knowledge
-    knowlData.foreach((points, _, competency) => ds.addValue(points, r.candidate.lastname, competency))
+    knowlData.foreach((points, _, competency) => ds.addValue(points, r.candidate.lastname, trimmed(competency, 24)))
     return ds
   end constructKnowledgeDataset
+
+  private def trimmed(src: String, maxLen: Int) = if src.length > maxLen then src.substring(0, maxLen) + "..." else src
 
   private def insertIndividualReports(
       pdf: Document,
@@ -154,12 +157,12 @@ object ReportGenerator:
   private def getPdfFont(size: Int) = com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, size.floatValue)
 
   private def getChapterParagraph(content: String): Element =
-    val paragraph = Paragraph(content, getPdfFont(16))
+    val paragraph = Paragraph(content, getPdfFont(18))
     paragraph.setAlignment(ElementTags.ALIGN_CENTER)
     return paragraph
 
   private def getPdfImage(c: JFreeChart, sz: (Int, Int)): Either[ReportError, Image] =
-    val img = c.createBufferedImage(1024, 1024)
+    val img = c.createBufferedImage(1000, 1000)
     return Try(Image.getInstance(img, null)).toEither.left
       .map(e => ReportError.Unexpected(e.getMessage))
       .map: img =>
