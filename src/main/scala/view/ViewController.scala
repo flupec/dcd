@@ -1,6 +1,5 @@
 package view
 
-import com.typesafe.scalalogging.Logger
 import tui.Constraint
 import tui.Direction.Vertical
 import tui.Frame
@@ -16,8 +15,7 @@ import tui.crossterm.KeyCode
   */
 class ViewController(
     private var main: TuiView,
-    private val logbar: LogView,
-    val log: Logger = Logger(classOf[ViewController])
+    private val logbar: LogView
 ) extends TuiView:
 
   /* Returns true if session must continue. Returns false if user want to exit from application */

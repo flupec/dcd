@@ -16,9 +16,6 @@ lazy val root = project
 
     scalaVersion := scala3Version,
 
-    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.10",
-    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-
     libraryDependencies += "com.olvind.tui" %% "tui" % "0.0.7",
     libraryDependencies += "com.lihaoyi" %% "upickle" % "4.1.0",
     libraryDependencies += "org.jfree" % "jfreechart" % "1.5.5",

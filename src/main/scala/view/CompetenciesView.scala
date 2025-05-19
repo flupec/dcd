@@ -1,6 +1,5 @@
 package view
 
-import com.typesafe.scalalogging.Logger
 import common.*
 import controller.CompetenciesController
 import tui.*
@@ -19,8 +18,6 @@ import view.CompetenciesView.Focus
 import view.CompetenciesView.Focus.Popup
 import view.CompetenciesView.PopupType
 import view.CompetenciesView.ViewState
-
-val log: Logger = Logger(classOf[CompetenciesView])
 
 val SelectedItemStyle = Style(bg = Some(Color.White))
 val CrossedItemStyle = Style(addModifier = Modifier.CROSSED_OUT)
