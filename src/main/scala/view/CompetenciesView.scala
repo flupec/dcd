@@ -366,7 +366,7 @@ class CompetenciesView private (
     val txt = popup.input
     val border = BlockWidget(title = Some(titleTxt), titleAlignment = Alignment.Center, borders = Borders.ALL)
     val paragraph = Array(Spans.from(Span.nostyle(prompt)), Spans.nostyle(txt))
-    ParagraphWidget(text = Text(paragraph), block = Some(border), alignment = Alignment.Center)
+    ParagraphWidget(text = Text(paragraph), block = Some(border), alignment = Alignment.Center, wrap = Some(Wrap(true)))
 
   private def popupCompetencyEstimateWidget(popup: Popup) =
     popupInputWidget(popup, "Estimate competency", "Enter competency estimation:")
@@ -398,7 +398,7 @@ class CompetenciesView private (
       .getOrElse("")
     return info match
       case _: String => popupInfoWidget(at, "Q&A", Text(Array.empty))
-      case ((q: String, ans: Option[String])) =>
+      case (q: String, ans: Option[String]) =>
         val infoText = Text(
           Array(
             Spans.nostyle("Q: " + q),
