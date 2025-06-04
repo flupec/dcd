@@ -27,5 +27,6 @@ information about it
 13 Implement code block in competency source file. Code block forces show functionality to start a new line and
 to save formatting. Right now show functinality removes all whitespaces and EOL symbols
 14 Implement word wrap on popup input
-15 Add note delete at view
+15 [CANCELLED] Add note delete at view
 16 Implement footline element wrapping if there are too many of them
+17 Implement word wrapping and scrolling at popup input
