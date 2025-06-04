@@ -50,3 +50,8 @@ def toQAKnowledgeResult(c: model.Competency): Seq[QAKnowledgeResult] = c.qa.zipW
 private def qaKnowledgeEstimate(q: model.QA): Option[Int] = q.knowledgeTest.estimate match
   case KnowledgeEstimate.NotMentioned      => None
   case KnowledgeEstimate.Answered(percent) => Some(percent)
+
+def toNoteResult(c: model.Competency) = result.CompetencyNoteResult(
+  competency = c.numeration,
+  notes = c.notes
+)

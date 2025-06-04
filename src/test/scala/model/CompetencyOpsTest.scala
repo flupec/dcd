@@ -239,6 +239,35 @@ class CompetencyOpsTest extends FunSuite:
     assertEquals(leaf.get.qa.size, 1)
     assertEquals(leaf.get.qa.head.question, newQuestion)
 
+  test("Note create"):
+    val tree = competencyTree(1)
+    assert(tree.notes.isEmpty)
+    val note = "A new note"
+    val treeUpdated = updateCompetencies(List(tree), byNumeration(List(1)), noteAppender(note))
+    assertEquals(treeUpdated.size, 1)
+    val noteAppended = treeUpdated(0)
+    assert(noteAppended.notes.nonEmpty)
+    assertEquals(noteAppended.notes.size, 1)
+    assertEquals(noteAppended.notes.head, note)
+
+  test("Note remove"):
+    val notesBefore = List("First note", "Second note")
+    val tree = competencyTree(1).copy(notes = notesBefore)
+    val treeUpdated = updateCompetencies(List(tree), byNumeration(List(1)), noteRemover(1))
+    assertEquals(treeUpdated.size, 1)
+    val noteAppended = treeUpdated(0)
+    assert(noteAppended.notes.nonEmpty)
+    assertEquals(noteAppended.notes.size, 1)
+    assertEquals(noteAppended.notes.head, notesBefore(0))
+
+  test("Note remove when argument not valid"):
+    val tree = competencyTree(1).copy(notes = List())
+    for invalidIdx <- 0 to 10 do
+      val treeUpdated = updateCompetencies(List(tree), byNumeration(List(1)), noteRemover(invalidIdx))
+      assertEquals(treeUpdated.size, 1)
+      val noteAppended = treeUpdated(0)
+      assert(noteAppended.notes.isEmpty)
+
   private def competency(n: Numeration): Competency = competency(n, KnowledgeEstimate.NotMentioned)
 
   private def competency(n: Numeration, e: KnowledgeEstimate) = Competency(n, n.toString, List.empty, List.empty, e)
