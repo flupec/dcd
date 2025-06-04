@@ -20,8 +20,7 @@ object SourceDescriptor:
 
 case class CompetencyDescriptor(
     name: String,
-    qa: Seq[QADescriptor],
-    notes: Seq[String]
+    qa: Seq[QADescriptor]
 )
 
 object CompetencyDescriptor:
@@ -40,7 +39,8 @@ case class Result(
     sourceDescriptorHash: String,
     candidate: Interviewee,
     competencyResults: Seq[CompetencyKnowledgeResult],
-    qaResults: Seq[QAKnowledgeResult]
+    qaResults: Seq[QAKnowledgeResult],
+    noteResults: Seq[CompetencyNoteResult]
 )
 
 object Result:
@@ -79,3 +79,14 @@ case class QAKnowledgeResult(
 
 object QAKnowledgeResult:
   given ReadWriter[QAKnowledgeResult] = macroRW
+
+// Created notes during interview
+case class CompetencyNoteResult(
+    // Competency id
+    competency: Numeration,
+    // Notes for this competency
+    notes: Seq[String]
+)
+
+object CompetencyNoteResult:
+  given ReadWriter[CompetencyNoteResult] = macroRW

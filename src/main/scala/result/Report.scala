@@ -5,10 +5,12 @@ import com.lowagie.text.Document
 import com.lowagie.text.Element
 import com.lowagie.text.ElementTags
 import com.lowagie.text.Image
+import com.lowagie.text.ListItem
 import com.lowagie.text.Paragraph
 import com.lowagie.text.Table
 import com.lowagie.text.pdf.PdfWriter
 import common.EitherExtension.sequenceRight
+import common.Numeration
 import common.ReportError
 import common.directParent
 import org.jfree.chart.JFreeChart
@@ -72,12 +74,41 @@ object ReportGenerator:
   // ): Either[ReportError, Unit] = generator(src, descriptor)
 
   private def individualGenerator(pdf: Document): IndividualReportGenerator = (r, s) =>
+    val competencyCharts: Either[ReportError, Seq[IndividualReport]] = generateCompetencyCharts(r, s)
+    val noteParagraphs: Either[ReportError, Seq[IndividualReport]] = generateCompetencyNotes(r, s)
+    val allReports = for
+      np <- noteParagraphs
+      cc <- competencyCharts
+    yield np appendedAll cc
+
+    for reports <- allReports yield insertIndividualReports(pdf, reports, r)
+  end individualGenerator
+
+  private def generateCompetencyNotes(
+      result: Result,
+      source: SourceDescriptor
+  ): Either[ReportError, Seq[IndividualReport.NotesParagraph]] =
+    result.noteResults
+      .map(nr => getCompetencyName(nr.competency, source).map(name => nameAtEachNote(nr, name)))
+      .sequenceRight match
+      case Left(err)    => Left(err)
+      case Right(notes) => Right(notes.map(n => IndividualReport.NotesParagraph(n)))
+
+  private def nameAtEachNote(nr: CompetencyNoteResult, competecyName: String): Seq[(competency: String, note: String)] =
+    nr.notes.map(note => (competecyName, note))
+
+  private def getCompetencyName(competency: Numeration, source: SourceDescriptor): Either[ReportError, String] =
+    source.competencies
+      .get(competency) match
+      case None             => Left(ReportError.InconsistentSourceDescriptor(s"Not found competency ${competency}"))
+      case Some(descriptor) => Right(descriptor.name)
+
+  private def generateCompetencyCharts(r: Result, s: SourceDescriptor): Either[ReportError, Seq[IndividualReport]] =
     val resultsByNestLevel = r.competencyResults.groupBy(_.numeration.size)
     resultsByNestLevel.values
       .map(generateCompetencyChart(_, r, s))
       .toSeq
       .sequenceRight
-      .map(insertIndividualReports(pdf, _, r))
 
   private def generateCompetencyChart(
       sameLvlKnowledges: Seq[CompetencyKnowledgeResult],
@@ -128,12 +159,49 @@ object ReportGenerator:
       reports: Seq[IndividualReport],
       r: Result
   ): Either[ReportError, Unit] =
-    val competencySpiderCharts = reports.collect({ case c @ IndividualReport.CompetencySpider(_, _, _) => c })
     pdf.add(getChapterParagraph("Individual competencies"))
-    insertIndividualChartTable(pdf, competencySpiderCharts, r).map: _ =>
-      pdf.newPage()
-      ()
+    pdf.add(getCandidateIndividualParagraph(r.candidate))
+    val competencyNotes = reports.collect { case IndividualReport.NotesParagraph(notes) => notes }.toSeq.flatten
+    val competencySpiderCharts = reports.collect({ case c @ IndividualReport.CompetencySpider(_, _, _) => c })
+    for
+      _ <- insertNotes(pdf, competencyNotes)
+      _ <- insertIndividualChartTable(pdf, competencySpiderCharts, r)
+      _ = pdf.newPage()
+    yield ()
   end insertIndividualReports
+
+  private def insertNotes(pdf: Document, notes: Seq[(competency: String, note: String)]): Either[ReportError, Unit] =
+    val notesByName =
+      for (name, notesUnflatten) <- notes.groupBy(_.competency)
+      yield (name, notesUnflatten.map(_.note))
+    notesByName
+      .map((name, notes) => insertNote(pdf, name, notes))
+      .toSeq
+      .sequenceRight
+      .map(_ => ())
+  end insertNotes
+
+  private def insertNote(pdf: Document, competency: String, notes: Seq[String]): Either[ReportError, Unit] =
+    val font = getPdfFont(12)
+    val competencyLine = Paragraph(competency, font)
+    val noteItems = for
+      note <- notes
+      listItem = ListItem(note, font)
+      _ = listItem.setIndentationLeft(16f)
+    yield listItem
+
+    val notesList =
+      val l = com.lowagie.text.List(false, false)
+      l.setListSymbol("• ")
+      l.setAlignindent(true)
+      l.setIndentationLeft(16f)
+      noteItems.foreach(l.add(_))
+      l
+
+    pdf.add(competencyLine)
+    pdf.add(notesList)
+    Right(())
+  end insertNote
 
   private def insertIndividualChartTable(
       pdf: Document,
@@ -144,7 +212,6 @@ object ReportGenerator:
       .map(c => getPdfImage(c.chart, IndividualChartSize).map(img => c.copy(chartImg = Some(img))))
       .sequenceRight
       .map: reports =>
-        pdf.add(getCandidateIndividualParagraph(r.candidate))
         pdf.add(constructTable(reports))
         ()
   end insertIndividualChartTable
@@ -185,4 +252,5 @@ object ReportGenerator:
 
   private enum IndividualReport:
     case CompetencySpider(competency: String, chart: JFreeChart, chartImg: Option[Image] = None)
+    case NotesParagraph(notes: Seq[(competency: String, note: String)])
 end ReportGenerator

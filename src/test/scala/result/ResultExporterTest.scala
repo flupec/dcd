@@ -22,10 +22,10 @@ class ResultExporterTest extends FunSuite:
       exportResultLocator(resultTgt, _),
       sourceDescriptorLocator(descriptorTgt, _)
     )
-    val out = sut.doExport(Vector.empty, Vector.empty)
+    val out = sut.doExport(Vector.empty, Vector.empty, Vector.empty)
     assert(out.isRight)
 
-  test("Result export must contain expected json results"):
+  test("Result export must contain expected json results in knowl results"):
     val (resultTgt, descriptorTgt) = (StringWriter(), StringWriter())
     val src = Vector(Competency(numeration = Vector(1), name = "name", Seq.empty, Seq.empty))
     val sut = ResultExporter(
@@ -44,7 +44,7 @@ class ResultExporterTest extends FunSuite:
         synthetic = false
       )
     )
-    val out = sut.doExport(knowlResults, Vector.empty)
+    val out = sut.doExport(knowlResults, Vector.empty, Vector.empty)
     assert(out.isRight)
     assertExportResult(resultTgt.toString, knowlResults)
     assertExportedDescriptor(descriptorTgt.toString, src)
@@ -69,6 +69,23 @@ class ResultExporterTest extends FunSuite:
     ).sourceDescriptor.hash
     assertNotEquals(descriptor1Hash, descriptor2Hash)
 
+  test("Result export must contain expected json results in note results"):
+    val (resultTgt, descriptorTgt) = (StringWriter(), StringWriter())
+    val competency =
+      Competency(numeration = Vector(1), name = "name", Seq.empty, Seq.empty, notes = Vector("First", "Second"))
+    val src = Vector(competency)
+    val sut = ResultExporter(
+      src,
+      Candidate,
+      exportDirLocator,
+      exportResultLocator(resultTgt, _),
+      sourceDescriptorLocator(descriptorTgt, _)
+    )
+    val expectedNotesResult = CompetencyNoteResult(Vector(1), competency.notes)
+    val out = sut.doExport(List.empty, Vector.empty, Vector(expectedNotesResult))
+    assert(out.isRight)
+    assertNotesResult(resultTgt.toString, Vector(expectedNotesResult))
+
   private def exportDirLocator(): Either[ResultExportError, Path] = Right(Path.of("/tmp/"))
 
   private def exportResultLocator(tgt: StringWriter, c: Interviewee): Either[ResultExportError, Writer] = Right(tgt)
@@ -81,6 +98,12 @@ class ResultExporterTest extends FunSuite:
     assert(r.sourceDescriptorHash != null)
     val knowlResults = inputResults.map(k => CompetencyKnowledgeResult(k.numeration, k.maxPoints, k.receivedPoints))
     assertEquals(knowlResults, r.competencyResults)
+
+  private def assertNotesResult(exportResult: String, inputNoteResults: Seq[CompetencyNoteResult]) =
+    val r: Result = upickle.default.read(exportResult)
+    assertEquals(r.candidate, Candidate)
+    assert(r.sourceDescriptorHash != null)
+    assertEquals(r.noteResults, inputNoteResults)
 
   private def assertExportedDescriptor(exportedDescriptor: String, input: Seq[Competency]) =
     val d: SourceDescriptor = upickle.default.read(exportedDescriptor)

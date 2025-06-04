@@ -22,13 +22,15 @@ class Competency(
   def copy(
       childs: Competencies = childs,
       estimate: KnowledgeEstimate = estimate,
-      qa: Seq[QA] = qa
+      qa: Seq[QA] = qa,
+      notes: Seq[String] = notes
   ) = Competency(
     numeration = numeration,
     name = name,
     qa = qa,
     childs = childs,
-    estimate = estimate
+    estimate = estimate,
+    notes = notes
   )
 
   def flatten: Competencies =

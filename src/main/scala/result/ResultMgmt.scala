@@ -62,9 +62,10 @@ class ResultExporter(
 
   def doExport(
       competenciesKnowledge: Seq[KnowledgeComputed],
-      qaKnowledges: Seq[QAKnowledgeResult]
+      qaKnowledges: Seq[QAKnowledgeResult],
+      notes: Seq[CompetencyNoteResult]
   ): Either[ResultExportError, Unit] =
-    val result = exportResult(competenciesKnowledge, qaKnowledges)
+    val result = exportResult(competenciesKnowledge, qaKnowledges, notes)
     for
       descriptorWriter <- descriptorLocator(result.candidate)
       resultWriter <- resultLocator(result.candidate)
@@ -83,11 +84,16 @@ class ResultExporter(
       writeTo(result, resFw, indent = 2)
     return written.toEither.left.map(e => ResultExportError.FileOpErr(e.getMessage))
 
-  private def exportResult(ks: Seq[KnowledgeComputed], qaKnowledges: Seq[QAKnowledgeResult]) = Result(
+  private def exportResult(
+      ks: Seq[KnowledgeComputed],
+      qaKnowledges: Seq[QAKnowledgeResult],
+      notes: Seq[CompetencyNoteResult]
+  ) = Result(
     sourceDescriptorHash = sourceDescriptor.hash,
     candidate = candidate,
     competencyResults = ks.map(toKnowledgeResult(_)),
-    qaResults = qaKnowledges
+    qaResults = qaKnowledges,
+    noteResults = notes
   )
 
   private def toKnowledgeResult(k: KnowledgeComputed) = CompetencyKnowledgeResult(
@@ -139,8 +145,7 @@ object ResultExporter:
 
   private def toDescriptor(c: Competency) = CompetencyDescriptor(
     name = c.name,
-    qa = toQADescriptors(c.qa),
-    notes = c.notes
+    qa = toQADescriptors(c.qa)
   )
 
   private def toQADescriptors(qs: Seq[QA]) = qs.map(q => QADescriptor(question = q.question, answer = q.answer))

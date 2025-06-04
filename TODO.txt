@@ -10,8 +10,8 @@ competency numerations, we need full information about source file (competency n
 That means that we need calculate hash of file to distinguish between different states of files and save
 hash and filename.
 6 [DONE] Provide question estimations at export data
-7 Support taking notes on competency at main view
-8 Provide notes data in export result
+7 [DONE] Support taking notes on competency at main view
+8 [DONE] Provide notes data in export result
 9 Use JFreeChart to export competency results to PDF. Competency results should contain:
     9.1 [DONE] SpiderWebPlot of each competency layer, but generate plot only for existing estimations. 
     9.2 SpiderWebPlot of each competency layer, on each plot must be placed many interview candidates
@@ -23,3 +23,10 @@ hash and filename.
          Invocation example: dcd report -f Avtaev-10.12.2025.json -f Smith-11.12.2025.json
 11 Provide info about non-existing questions and competencies at results file since descriptor will lack
 information about it
+12 Implement scroll at answer view
+13 Implement code block in competency source file. Code block forces show functionality to start a new line and
+to save formatting. Right now show functinality removes all whitespaces and EOL symbols
+14 Implement word wrap on popup input
+15 [CANCELLED] Add note delete at view
+16 Implement footline element wrapping if there are too many of them
+17 Implement word wrapping and scrolling at popup input

@@ -16,6 +16,13 @@ def byNumeration(n: Numeration): Filter = (c) => c.numeration == n
 /** Returns updater that updates competency estimate */
 def estimateUpdater(e: KnowledgeEstimate): Updater = (c) => c.copy(estimate = e)
 
+/** Returns updater that appends note */
+def noteAppender(note: String): Updater = c => c.copy(notes = c.notes appended note)
+
+/** Returns updater that removes note by idx */
+def noteRemover(idx: Int): Updater = c =>
+  if idx < 0 || idx >= c.notes.size then c else c.copy(notes = c.notes.patch(idx, Seq.empty, 1))
+
 /** Returns updater that updates knowledge for qa at specified index
   *
   * @param t new knowledge test
