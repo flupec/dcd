@@ -366,7 +366,12 @@ class CompetenciesView private (
     val txt = popup.input
     val border = BlockWidget(title = Some(titleTxt), titleAlignment = Alignment.Center, borders = Borders.ALL)
     val paragraph = Array(Spans.from(Span.nostyle(prompt)), Spans.nostyle(txt))
-    ParagraphWidget(text = Text(paragraph), block = Some(border), alignment = Alignment.Center, wrap = Some(Wrap(true)))
+    ParagraphWidget(
+      text = Text(paragraph),
+      block = Some(border),
+      alignment = Alignment.Center,
+      wrap = Some(Wrap(false))
+    )
 
   private def popupCompetencyEstimateWidget(popup: Popup) =
     popupInputWidget(popup, "Estimate competency", "Enter competency estimation:")
@@ -421,7 +426,7 @@ class CompetenciesView private (
       text = info,
       block = Some(border),
       alignment = Alignment.Left,
-      wrap = Some(Wrap(true))
+      wrap = Some(Wrap(false))
     )
 
   private def handledCompetencyEstimationInput(key: KeyCode) =
@@ -447,7 +452,7 @@ class CompetenciesView private (
       case symb: KeyCode.Char => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
       // Delete one input symbol
-      case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
+      case _: KeyCode.Backspace if focus.input.nonEmpty => focusChanged(Focus.Popup(focus.kind, focus.input.init))
 
       // Submit input
       case _: KeyCode.Enter =>
@@ -484,7 +489,7 @@ class CompetenciesView private (
       case symb: KeyCode.Char => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
       // Delete one input symbol
-      case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
+      case _: KeyCode.Backspace if focus.input.nonEmpty => focusChanged(Focus.Popup(focus.kind, focus.input.init))
 
       // Submit input
       case _: KeyCode.Enter =>
@@ -549,7 +554,7 @@ class CompetenciesView private (
       case symb: KeyCode.Char => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
       // Delete one input symbol
-      case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
+      case _: KeyCode.Backspace if focus.input.nonEmpty => focusChanged(Focus.Popup(focus.kind, focus.input.init))
 
       case _ => this
     end match
@@ -576,7 +581,7 @@ class CompetenciesView private (
       case symb: KeyCode.Char => focusChanged(Focus.Popup(focus.kind, focus.input + symb.c))
 
       // Delete one input symbol
-      case _: KeyCode.Backspace => focusChanged(Focus.Popup(focus.kind, focus.input.init))
+      case _: KeyCode.Backspace if focus.input.nonEmpty => focusChanged(Focus.Popup(focus.kind, focus.input.init))
 
       case _ => this
     end match
