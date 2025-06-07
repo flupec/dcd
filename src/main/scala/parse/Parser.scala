@@ -48,12 +48,18 @@ object Parser:
         case Left(err)      => Left(err)
         case Right(r, c, s) => doParse(in, r, c, s)
 
+enum ParserContext derives CanEqual:
+  // Empt context
+  case Empty
+  // Preformatted block context
+  case PreformattedBlock
+
 // Parser states for .dcd file format
 enum DcdParser derives CanEqual:
   case Empty
   case Setting(val key: Readable, val value: Readable)
   case CompetencyHeader(val numeration: ReadableNumber, val name: Readable)
-  case CompetencyQA(val question: Readable, val answer: Readable)
+  case CompetencyQA(val question: Readable, val answer: Readable, ctx: ParserContext = ParserContext.Empty)
 
   import DcdParser.*
 
@@ -250,6 +256,20 @@ enum DcdParser derives CanEqual:
 
     val currChar = input.at(currPos)
     input.at(nextPos) match
+
+      // Curr char is any, next chars is end of preformatted block => end preformatted block and commit
+      case nextChar if self.ctx == ParserContext.PreformattedBlock
+        && nextSymbolsEq(currPos, input, 3, PreformatBlockDeclaration) =>
+          Right(out, currPos.nextMulti(input, 3).last, endPreformattedBlock(self))
+      
+      // Curr char is any, next char is any and we in preformatted block => append next char
+      case nextChar if self.ctx == ParserContext.PreformattedBlock => Right(out, nextPos, updatedQA(nextChar, self))
+
+      // Curr char is any, next char is preformat block declaration => start new line and change context to preformatted
+      case nextChar if nextSymbolsEq(currPos, input, 3, PreformatBlockDeclaration) =>
+        if self.ctx == ParserContext.PreformattedBlock then Left(wrongFormat(nextChar, nextPos, input))
+        else Right(out, currPos.nextMulti(input, 3).last, startPreformattedBlock(self))
+
       // Curr char is '-', next char is space => do nothing
       case nextChar if currChar == QuestionDeclaration && isSpaceOrTab(nextChar) => Right(out, nextPos, self)
 
@@ -310,6 +330,7 @@ object DcdParser:
   val NumerationDelimeter = '.'
   val QuestionDeclaration = '-'
   val AnswerDeclaration = '='
+  val PreformatBlockDeclaration = '`'
 
   // Punctuation and alphabetic symbols except .dcd specific identifiers
   private val TextPattern: Pattern = Pattern.compile("[\\p{Print}&&[^!=#-]]", Pattern.UNICODE_CHARACTER_CLASS)
@@ -318,6 +339,12 @@ object DcdParser:
   def isSpaceOrTab(c: Char) = c == ' ' || c == '\t' || c == '\r'
   def isEOL(c: Char) = c == '\n'
   def isText(c: Char) = !isSpaceOrTabOrEOL(c) && TextPattern.matcher(String.valueOf(c)).matches()
+
+  def nextSymbolsEq(start: Cursor, in: ParseInput, symbolsAmount: Int, symb: Char): Boolean =
+    in.slice(start, symbolsAmount).forall:
+      _ match
+        case None => false
+        case Some(symbol) => symbol == symb
 
   private def wrongFormat(char: Char, at: Cursor, in: ParseInput) =
     ParseError.BadFileFormat(s"Unexpected symbol at line=${at.line}, col=${at.column}, symbol='$char'", in.file)
@@ -378,6 +405,16 @@ object DcdParser:
   private def commitQA(q: CompetencyQA): CompetencyQA =
     if !q.question.fullyRead then q.copy(question = q.question.asRead)
     else q.copy(answer = q.answer.asRead)
+
+  private def startPreformattedBlock(q: CompetencyQA) =
+    // if !q.question.fullyRead then q.copy(question = q.question.concat('\n'), ctx = ParserContext.PreformattedBlock)
+    // else q.copy(answer = q.answer.concat('\n'), ctx = ParserContext.PreformattedBlock)
+    q.copy(ctx = ParserContext.PreformattedBlock)
+
+  private def endPreformattedBlock(q: CompetencyQA) =
+    // if !q.question.fullyRead then q.copy(question = q.question.concat('\n'), ctx = ParserContext.Empty)
+    // else q.copy(answer = q.answer.concat('\n'), ctx = ParserContext.Empty)
+    q.copy(ctx = ParserContext.Empty)
 
   private def resultQA(parseResult: ParseResult, q: CompetencyQA): Either[ParseError, ParseResult] =
     val question = q.question.result

@@ -36,4 +36,21 @@ extension (spans: Spans)
 
   def withPatchedStyle(style: Style) = Spans(spans.spans.map(s => s.copy(style = s.style.patch(style))))
 
-extension (text: Text) infix def concat(another: Text): Text = Text(text.lines appendedAll another.lines)
+extension (text: Text)
+  infix def concat(another: Text): Text = Text(text.lines appendedAll another.lines)
+
+  /** Returns text with new lines added if any of span in line contains EOL */
+  def toMultipleLines: Text =
+    val containsEOL = (s: Spans) => s.toString.contains('\n')
+    val lines = scala.collection.mutable.ListBuffer.empty[Spans]
+
+    for line <- text.lines
+    yield
+      if containsEOL(line) then
+        lines.addAll(line.spans.flatMap: span =>
+          val split = span.content.split("\n")
+          split.map(Spans.styled(_, span.style))
+        )
+      else lines.addOne(line)
+    return Text(lines.toArray)
+  end toMultipleLines

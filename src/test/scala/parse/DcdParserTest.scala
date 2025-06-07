@@ -25,7 +25,6 @@ class DcdParserTest extends FunSuite:
   test("Should parse competency questions in without-answers.dcd"):
     val input = ParseTestUtils.parseInputAt("dcd/without-answers.dcd")
     val out = Parser.parse(input)
-    println(out.right)
     assert(out.isRight, out.left)
 
     val parseResult = out.right.get
@@ -35,13 +34,45 @@ class DcdParserTest extends FunSuite:
   test("Should parse competency answers in with-answers.dcd"):
     val input = ParseTestUtils.parseInputAt("dcd/with-answers.dcd")
     val out = Parser.parse(input)
-    println(out)
     assert(out.isRight, out.left)
 
     val parseResult = out.right.get
     assertHeaders(parseResult)
     assertQuestions(parseResult)
     assertAnswers(parseResult)
+
+  test("Should correctly parse preformatted block in qa answers"):
+    val input = ParseTestUtils.parseInputAt("dcd/with-preformatted-answers.dcd")
+    val out = Parser.parse(input)
+    println(out.right)
+    assert(out.isRight, out.left)
+    val expectedProgrammingDefinition =
+      """Computer programming or coding is the composition of sequences of instructions,
+                                           |        called programs, that computers can follow to perform tasks""".stripMargin
+
+    val programming = out.toOption.map(_.competencies).flatMap(_.headOption)
+    val programmingDefinition = programming
+      .map(_.qa)
+      .flatMap(_.headOption)
+      .flatMap(_.answer)
+    assert(programmingDefinition.isDefined)
+    assertEquals(programmingDefinition.get, expectedProgrammingDefinition)
+
+    val variables = programming.flatMap(_.childs.headOption)
+    val localVariablesDefinition = variables.flatMap(_.qa.headOption).flatMap(_.answer)
+    assert(localVariablesDefinition.isDefined)
+    assertEquals(localVariablesDefinition.get, "A local variable is a variable that is given local scope")
+
+    val scopeOfVariableDefinition = variables.flatMap(_.qa.lift(1)).flatMap(_.answer)
+    val expectedScopeOfVariableDefinition = """Example
+                                              |            val a = 10
+                                              |
+                                              |            val b =
+                                              |                val c = a + 4 // variable a can be accessed
+                                              |                c
+                                              |            val d = c // Compilation error, cannot find variable c""".stripMargin
+    assert(scopeOfVariableDefinition.isDefined)
+    assertEquals(scopeOfVariableDefinition.get, expectedScopeOfVariableDefinition)
 
   private def assertHeaders(parseResult: ParseResult) =
     // Programming header assertions

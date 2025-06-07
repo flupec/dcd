@@ -1,0 +1,16 @@
+! format=dcd
+! setting=value
+
+#1 Programming
+    - Definition === ```Computer programming or coding is the composition of sequences of instructions,
+        called programs, that computers can follow to perform tasks```
+    # 1.1 Variables
+        - Local variables === ```A local variable is a variable that is given local scope```
+        - Scope of variable === Example```
+            val a = 10
+
+            val b =
+                val c = a + 4 // variable a can be accessed
+                c
+            val d = c // Compilation error, cannot find variable c
+        ```

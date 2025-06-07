@@ -406,7 +406,7 @@ class CompetenciesView private (
             ans.map(a => Spans.nostyle("A: " + a)).getOrElse(EmptySpans)
           )
         )
-        popupInfoWidget(at, "Q&A", infoText)
+        popupInfoWidget(at, "Q&A", infoText.toMultipleLines)
   end qaAnswerWidget
 
   private def popupInfoWidget(at: Rect, title: String, info: Text): ParagraphWidget =

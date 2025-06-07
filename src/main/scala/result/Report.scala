@@ -98,9 +98,8 @@ object ReportGenerator:
     nr.notes.map(note => (competecyName, note))
 
   private def getCompetencyName(competency: Numeration, source: SourceDescriptor): Either[ReportError, String] =
-    source.competencies
-      .get(competency) match
-      case None             => Left(ReportError.InconsistentSourceDescriptor(s"Not found competency ${competency}"))
+    source.competencies.get(competency) match
+      case None             => Left(ReportError.notFoundNumeration(competency))
       case Some(descriptor) => Right(descriptor.name)
 
   private def generateCompetencyCharts(r: Result, s: SourceDescriptor): Either[ReportError, Seq[IndividualReport]] =
