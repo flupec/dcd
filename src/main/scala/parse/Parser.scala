@@ -258,10 +258,11 @@ enum DcdParser derives CanEqual:
     input.at(nextPos) match
 
       // Curr char is any, next chars is end of preformatted block => end preformatted block and commit
-      case nextChar if self.ctx == ParserContext.PreformattedBlock
-        && nextSymbolsEq(currPos, input, 3, PreformatBlockDeclaration) =>
-          Right(out, currPos.nextMulti(input, 3).last, endPreformattedBlock(self))
-      
+      case nextChar
+          if self.ctx == ParserContext.PreformattedBlock
+            && nextSymbolsEq(currPos, input, 3, PreformatBlockDeclaration) =>
+        Right(out, currPos.nextMulti(input, 3).last, endPreformattedBlock(self))
+
       // Curr char is any, next char is any and we in preformatted block => append next char
       case nextChar if self.ctx == ParserContext.PreformattedBlock => Right(out, nextPos, updatedQA(nextChar, self))
 
@@ -341,10 +342,11 @@ object DcdParser:
   def isText(c: Char) = !isSpaceOrTabOrEOL(c) && TextPattern.matcher(String.valueOf(c)).matches()
 
   def nextSymbolsEq(start: Cursor, in: ParseInput, symbolsAmount: Int, symb: Char): Boolean =
-    in.slice(start, symbolsAmount).forall:
-      _ match
-        case None => false
-        case Some(symbol) => symbol == symb
+    in.slice(start, symbolsAmount)
+      .forall:
+        _ match
+          case None         => false
+          case Some(symbol) => symbol == symb
 
   private def wrongFormat(char: Char, at: Cursor, in: ParseInput) =
     ParseError.BadFileFormat(s"Unexpected symbol at line=${at.line}, col=${at.column}, symbol='$char'", in.file)
@@ -406,15 +408,9 @@ object DcdParser:
     if !q.question.fullyRead then q.copy(question = q.question.asRead)
     else q.copy(answer = q.answer.asRead)
 
-  private def startPreformattedBlock(q: CompetencyQA) =
-    // if !q.question.fullyRead then q.copy(question = q.question.concat('\n'), ctx = ParserContext.PreformattedBlock)
-    // else q.copy(answer = q.answer.concat('\n'), ctx = ParserContext.PreformattedBlock)
-    q.copy(ctx = ParserContext.PreformattedBlock)
+  private def startPreformattedBlock(q: CompetencyQA) = q.copy(ctx = ParserContext.PreformattedBlock)
 
-  private def endPreformattedBlock(q: CompetencyQA) =
-    // if !q.question.fullyRead then q.copy(question = q.question.concat('\n'), ctx = ParserContext.Empty)
-    // else q.copy(answer = q.answer.concat('\n'), ctx = ParserContext.Empty)
-    q.copy(ctx = ParserContext.Empty)
+  private def endPreformattedBlock(q: CompetencyQA) = q.copy(ctx = ParserContext.Empty)
 
   private def resultQA(parseResult: ParseResult, q: CompetencyQA): Either[ParseError, ParseResult] =
     val question = q.question.result
