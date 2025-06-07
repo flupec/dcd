@@ -12,7 +12,7 @@ hash and filename.
 6 [DONE] Provide question estimations at export data
 7 [DONE] Support taking notes on competency at main view
 8 [DONE] Provide notes data in export result
-9 Use JFreeChart to export competency results to PDF. Competency results should contain:
+9 [50% DONE] Use JFreeChart to export competency results to PDF. Competency results should contain:
     9.1 [DONE] SpiderWebPlot of each competency layer, but generate plot only for existing estimations. 
     9.2 SpiderWebPlot of each competency layer, on each plot must be placed many interview candidates
         estimations, so we can compare them
@@ -24,7 +24,7 @@ hash and filename.
 11 Provide info about non-existing questions and competencies at results file since descriptor will lack
 information about it
 12 Implement scroll at answer view
-13 Implement code block in competency source file. Code block forces show functionality to start a new line and
+13 [DONE] Implement code block in competency source file. Code block forces show functionality to start a new line and
 to save formatting. Right now show functinality removes all whitespaces and EOL symbols
 14 [DONE] Implement word wrap on popup input
 15 [CANCELLED] Add note delete at view
