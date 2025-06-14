@@ -5,7 +5,7 @@ import common.Numeration
 import upickle.default.ReadWriter
 import upickle.default.macroRW
 
-/** Source file descriptor. Contains all valuable information of source file at exporte functionality
+/** Source file descriptor. Contains all valuable information of source file at export functionality
   *
   * @param competencies competency descriptions
   * @param hash source file hash
@@ -40,7 +40,9 @@ case class Result(
     candidate: Interviewee,
     competencyResults: Seq[CompetencyKnowledgeResult],
     qaResults: Seq[QAKnowledgeResult],
-    noteResults: Seq[CompetencyNoteResult]
+    noteResults: Seq[CompetencyNoteResult],
+    // Contains competency descriptors that was created at report session and, therefore, missed in SourceDescriptor
+    extraCompetencies: Map[Numeration, CompetencyDescriptor]
 )
 
 object Result:

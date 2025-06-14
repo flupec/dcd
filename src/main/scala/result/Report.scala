@@ -76,10 +76,12 @@ object ReportGenerator:
   private def individualGenerator(pdf: Document): IndividualReportGenerator = (r, s) =>
     val competencyCharts: Either[ReportError, Seq[IndividualReport]] = generateCompetencyCharts(r, s)
     val noteParagraphs: Either[ReportError, Seq[IndividualReport]] = generateCompetencyNotes(r, s)
+    val extraKnowlParagraphs: Either[ReportError, Seq[IndividualReport]] = generateExtraKnowlReport(r, s)
     val allReports = for
       np <- noteParagraphs
       cc <- competencyCharts
-    yield np appendedAll cc
+      ekp <- extraKnowlParagraphs
+    yield np appendedAll cc appendedAll ekp
 
     for reports <- allReports yield insertIndividualReports(pdf, reports, r)
   end individualGenerator
@@ -87,20 +89,24 @@ object ReportGenerator:
   private def generateCompetencyNotes(
       result: Result,
       source: SourceDescriptor
-  ): Either[ReportError, Seq[IndividualReport.NotesParagraph]] =
-    result.noteResults
-      .map(nr => getCompetencyName(nr.competency, source).map(name => nameAtEachNote(nr, name)))
-      .sequenceRight match
-      case Left(err)    => Left(err)
-      case Right(notes) => Right(notes.map(n => IndividualReport.NotesParagraph(n)))
+  ): Either[ReportError, Seq[IndividualReport]] =
+    if result.noteResults.isEmpty then Right(Vector.empty)
+    else
+      Right(for
+        nr <- result.noteResults
+        name <- getCompetencyName(nr.competency, result, source)
+        namedNote = nameAtEachNote(nr, name)
+        paragraph = IndividualReport.NotesParagraph(namedNote)
+      yield paragraph)
 
   private def nameAtEachNote(nr: CompetencyNoteResult, competecyName: String): Seq[(competency: String, note: String)] =
     nr.notes.map(note => (competecyName, note))
 
-  private def getCompetencyName(competency: Numeration, source: SourceDescriptor): Either[ReportError, String] =
-    source.competencies.get(competency) match
-      case None             => Left(ReportError.notFoundNumeration(competency))
-      case Some(descriptor) => Right(descriptor.name)
+  private def getCompetencyName(competency: Numeration, result: Result, source: SourceDescriptor): Option[String] =
+    source.competencies
+      .get(competency)
+      .orElse(result.extraCompetencies.get(competency))
+      .map(_.name)
 
   private def generateCompetencyCharts(r: Result, s: SourceDescriptor): Either[ReportError, Seq[IndividualReport]] =
     val resultsByNestLevel = r.competencyResults.groupBy(_.numeration.size)
@@ -108,46 +114,64 @@ object ReportGenerator:
       .map(generateCompetencyChart(_, r, s))
       .toSeq
       .sequenceRight
+      .map(reports => reports.collect { case Some(report) => report })
 
   private def generateCompetencyChart(
       sameLvlKnowledges: Seq[CompetencyKnowledgeResult],
       r: Result,
       s: SourceDescriptor
-  ): Either[ReportError, IndividualReport] =
+  ): Either[ReportError, Option[IndividualReport]] =
     import scala.jdk.CollectionConverters.SeqHasAsJava
     // Parent competency. Will be ther same for all sameLvlKnowledges items
     val parentCompetency = sameLvlKnowledges.head.numeration.directParent
       .flatMap(s.competencies.get(_))
       .map(_.name)
       .getOrElse("Overview")
-    return sameLvlKnowledges
-      .map: k =>
-        // Get competency name for knowledge
-        s.competencies
-          .get(k.numeration)
-          .map(_.name)
-          .fold(Left(ReportError.notFoundNumeration(k.numeration)))(Right(_))
-          .map(name => (k.receivedPoints, k.maxPoints, name))
-      .sequenceRight
-      .map: knowlData =>
-        val plot = SpiderWebPlot(constructKnowledgeDataset(knowlData, r))
-        plot.setLabelFont(getChartFont(18))
-        plot.setAxisLabelGap(-0.5d)
-        val chart = JFreeChart(plot)
-        chart.setSubtitles(List(TextTitle(parentCompetency, getChartFont(32))).asJava)
-        IndividualReport.CompetencySpider(parentCompetency, chart)
+
+    val competencyKnowledge = for
+      k <- sameLvlKnowledges
+      competencyDescriptor <- s.competencies.get(k.numeration)
+    yield (points = k.receivedPoints, maxPoints = k.maxPoints, competencyName = competencyDescriptor.name)
+
+    if competencyKnowledge.isEmpty then Right(None)
+    else
+      val plot = SpiderWebPlot(constructKnowledgeDataset(competencyKnowledge, r))
+      plot.setLabelFont(getChartFont(18))
+      plot.setAxisLabelGap(-0.5d)
+      val chart = JFreeChart(plot)
+      chart.setSubtitles(List(TextTitle(parentCompetency, getChartFont(32))).asJava)
+      Right(Some(IndividualReport.CompetencySpider(parentCompetency, chart)))
   end generateCompetencyChart
+
+  private def generateExtraKnowlReport(r: Result, s: SourceDescriptor): Either[ReportError, Seq[IndividualReport]] =
+    val xtraKnowls = r.competencyResults.filter: result =>
+      s.competencies.get(result.numeration).isEmpty
+    val xtraCompKnowls = xtraKnowls
+      .map: xk =>
+        r.extraCompetencies
+          .get(xk.numeration)
+          .fold(Left(ReportError.notFoundNumeration(xk.numeration)))(xc => Right(name = xc.name, knowl = xk))
+      .sequenceRight
+
+    xtraCompKnowls match
+      case Left(err) => Left(err)
+      case Right(xtraKnowls) =>
+        Right(xtraKnowls.map(xk => IndividualReport.ExtraKnowlParagraph(xk.name, xk.knowl)))
+  end generateExtraKnowlReport
 
   private def getChartFont(size: Int) = Font("Helvetica", Font.BOLD, size)
 
-  private def constructKnowledgeDataset(knowlData: Seq[(Float, Float, String)], r: Result): DefaultCategoryDataset =
+  private def constructKnowledgeDataset(
+      knowlData: Seq[(points: Float, maxPoints: Float, competencyName: String)],
+      r: Result
+  ): DefaultCategoryDataset =
     val ds = DefaultCategoryDataset()
     // if knowlData has less than 3 items, then add 2 or 1 fake item to see good SpiderWebPlot, not line or point
     if knowlData.size < 3 then
-      val max = knowlData.map((_, maxPoints, _) => maxPoints).max
+      val max = knowlData.map(_.maxPoints).max
       for i <- 0 until knowlData.size do ds.addValue(max, r.candidate.lastname, "")
     // Add value to plot for each knowledge
-    knowlData.foreach((points, _, competency) => ds.addValue(points, r.candidate.lastname, trimmed(competency, 24)))
+    knowlData.foreach(d => ds.addValue(d.points, r.candidate.lastname, trimmed(d.competencyName, 24)))
     return ds
   end constructKnowledgeDataset
 
@@ -161,14 +185,17 @@ object ReportGenerator:
     pdf.add(getChapterParagraph("Individual competencies"))
     pdf.add(getCandidateIndividualParagraph(r.candidate))
     val competencyNotes = reports.collect { case IndividualReport.NotesParagraph(notes) => notes }.toSeq.flatten
+    val extraKnowledges = reports.collect { case c @ IndividualReport.ExtraKnowlParagraph(competency, knowledge) => c }
     val competencySpiderCharts = reports.collect({ case c @ IndividualReport.CompetencySpider(_, _, _) => c })
     for
       _ <- insertNotes(pdf, competencyNotes)
+      _ <- insertExtraKnowledge(pdf, extraKnowledges)
       _ <- insertIndividualChartTable(pdf, competencySpiderCharts, r)
       _ = pdf.newPage()
     yield ()
   end insertIndividualReports
 
+  /** Insert notes that was taken during report session */
   private def insertNotes(pdf: Document, notes: Seq[(competency: String, note: String)]): Either[ReportError, Unit] =
     val notesByName =
       for (name, notesUnflatten) <- notes.groupBy(_.competency)
@@ -202,6 +229,15 @@ object ReportGenerator:
     Right(())
   end insertNote
 
+  /** Inserts knowledge data for competencies that was created during report sesion */
+  private def insertExtraKnowledge(
+      pdf: Document,
+      knowls: Seq[IndividualReport.ExtraKnowlParagraph]
+  ): Either[ReportError, Unit] =
+    val knowledgeToNotes = (k: CompetencyKnowledgeResult) => s"Got ${k.receivedPoints} out of ${k.maxPoints} points"
+    knowls.map(xk => insertNote(pdf, xk.competency, List(knowledgeToNotes(xk.knowledge)))).sequenceRight.map(_ => ())
+
+  /** Inserts a chart that shows different competency scores */
   private def insertIndividualChartTable(
       pdf: Document,
       charts: Seq[IndividualReport.CompetencySpider],
@@ -250,6 +286,16 @@ object ReportGenerator:
   // private def comparisonGenerator(pdf: Document): ComparisonReportGenerator = (rs, s) => ???
 
   private enum IndividualReport:
+    /** Created when competency knowledge presents in data, but source descriptor lacks information about it - that
+      * means that this competency was created on-the-fly during estimate session
+      */
+    case ExtraKnowlParagraph(competency: String, knowledge: CompetencyKnowledgeResult)
+
+    /** Graph that shows knowledge for different competencies
+      */
     case CompetencySpider(competency: String, chart: JFreeChart, chartImg: Option[Image] = None)
+
+    /** Text informatiion with notes from estimate session
+      */
     case NotesParagraph(notes: Seq[(competency: String, note: String)])
 end ReportGenerator

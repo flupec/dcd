@@ -21,7 +21,7 @@ hash and filename.
          Invocation example: dcd estimate -f example.dcd -l Smith
     10.2 report. Arguments is reportSourceFile(many -f) and TODO. This is non-interactive cli.
          Invocation example: dcd report -f Avtaev-10.12.2025.json -f Smith-11.12.2025.json
-11 Provide info about non-existing questions and competencies at results file since descriptor will lack
+11 [DONE] Provide info about non-existing questions and competencies at results file since descriptor will lack
 information about it
 12 Implement scroll at answer view
 13 [DONE] Implement code block in competency source file. Code block forces show functionality to start a new line and
@@ -29,3 +29,4 @@ to save formatting. Right now show functinality removes all whitespaces and EOL 
 14 [DONE] Implement word wrap on popup input
 15 [CANCELLED] Add note delete at view
 16 Implement footline element wrapping if there are too many of them
+17 Refactor Report functionality, right now it is not testable

@@ -22,7 +22,7 @@ class ResultExporterTest extends FunSuite:
       exportResultLocator(resultTgt, _),
       sourceDescriptorLocator(descriptorTgt, _)
     )
-    val out = sut.doExport(Vector.empty, Vector.empty, Vector.empty)
+    val out = sut.doExport(Vector.empty, Vector.empty, Vector.empty, Vector.empty)
     assert(out.isRight)
 
   test("Result export must contain expected json results in knowl results"):
@@ -44,7 +44,7 @@ class ResultExporterTest extends FunSuite:
         synthetic = false
       )
     )
-    val out = sut.doExport(knowlResults, Vector.empty, Vector.empty)
+    val out = sut.doExport(knowlResults, Vector.empty, Vector.empty, Vector.empty)
     assert(out.isRight)
     assertExportResult(resultTgt.toString, knowlResults)
     assertExportedDescriptor(descriptorTgt.toString, src)
@@ -82,7 +82,7 @@ class ResultExporterTest extends FunSuite:
       sourceDescriptorLocator(descriptorTgt, _)
     )
     val expectedNotesResult = CompetencyNoteResult(Vector(1), competency.notes)
-    val out = sut.doExport(List.empty, Vector.empty, Vector(expectedNotesResult))
+    val out = sut.doExport(List.empty, Vector.empty, Vector(expectedNotesResult), src)
     assert(out.isRight)
     assertNotesResult(resultTgt.toString, Vector(expectedNotesResult))
 

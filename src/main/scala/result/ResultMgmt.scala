@@ -6,6 +6,7 @@ import common.ResultImportError
 import model.Competency
 import model.KnowledgeComputed
 import model.QA
+import result.ResultExporter.toDescriptor
 import upickle.default.read
 import upickle.default.writeTo
 
@@ -21,11 +22,6 @@ import java.util.Base64
 import scala.annotation.tailrec
 import scala.util.Try
 import scala.util.Using
-
-type Exporter = (
-    competenciesKnowledge: Seq[KnowledgeComputed],
-    qaKnowledge: Seq[QAKnowledgeResult]
-) => Either[ResultExportError, Unit]
 
 type Importer = (results: Seq[File], descriptor: File) => Either[ResultImportError, (Seq[Result], SourceDescriptor)]
 
@@ -54,18 +50,28 @@ def sourceDescriptorLocator(l: ExportDirLocator, sourceHash: String): ExportTgtL
     Right(FileWriter(exportDir.resolve(filename).toFile))
 
 class ResultExporter(
+    /** Descriptor with initial information about competencies, obtained from dcd file */
     val sourceDescriptor: SourceDescriptor,
+    /** Candidate person data */
     val candidate: Interviewee,
     private val resultLocator: ExportTgtLocator,
     private val descriptorLocator: ExportTgtLocator
 ):
 
+  /** Perform knowledge data export. Knowledge data is acquired at interviewee estimate session
+    *
+    * @param competenciesKnowledge competency knowledges
+    * @param qaKnowledges qa knowledges
+    * @param notes notes
+    * @param allCompetencies all competencies. May not equal to competencies in dcd file
+    */
   def doExport(
       competenciesKnowledge: Seq[KnowledgeComputed],
       qaKnowledges: Seq[QAKnowledgeResult],
-      notes: Seq[CompetencyNoteResult]
+      notes: Seq[CompetencyNoteResult],
+      allCompetencies: Seq[Competency]
   ): Either[ResultExportError, Unit] =
-    val result = exportResult(competenciesKnowledge, qaKnowledges, notes)
+    val result = exportResult(competenciesKnowledge, qaKnowledges, notes, allCompetencies)
     for
       descriptorWriter <- descriptorLocator(result.candidate)
       resultWriter <- resultLocator(result.candidate)
@@ -87,14 +93,21 @@ class ResultExporter(
   private def exportResult(
       ks: Seq[KnowledgeComputed],
       qaKnowledges: Seq[QAKnowledgeResult],
-      notes: Seq[CompetencyNoteResult]
-  ) = Result(
-    sourceDescriptorHash = sourceDescriptor.hash,
-    candidate = candidate,
-    competencyResults = ks.map(toKnowledgeResult(_)),
-    qaResults = qaKnowledges,
-    noteResults = notes
-  )
+      notes: Seq[CompetencyNoteResult],
+      allCompetencies: Seq[Competency]
+  ) =
+    val extraCompetencies = allCompetencies
+      .filter(c => !sourceDescriptor.competencies.contains(c.numeration))
+      .map(c => c.numeration -> toDescriptor(c))
+      .toMap
+    Result(
+      sourceDescriptorHash = sourceDescriptor.hash,
+      candidate = candidate,
+      competencyResults = ks.map(toKnowledgeResult(_)),
+      qaResults = qaKnowledges,
+      noteResults = notes,
+      extraCompetencies = extraCompetencies
+    )
 
   private def toKnowledgeResult(k: KnowledgeComputed) = CompetencyKnowledgeResult(
     numeration = k.numeration,
