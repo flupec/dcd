@@ -20,8 +20,12 @@ def estimateUpdater(e: KnowledgeEstimate): Updater = (c) => c.copy(estimate = e)
 def noteAppender(note: String): Updater = c => c.copy(notes = c.notes appended note)
 
 /** Returns updater that removes note by idx */
-def noteRemover(idx: Int): Updater = c =>
-  if idx < 0 || idx >= c.notes.size then c else c.copy(notes = c.notes.patch(idx, Seq.empty, 1))
+def noteRemover(idx: Int): Updater = c => if idx < 0 || idx >= c.notes.size then c else c.withRemovedNote(idx)
+
+def qaNoteAppender(idx: Int, note: String): Updater = c =>
+  c.qa.lift(idx) match
+    case Some(qa) => c.withReplacedQA(idx, qa => qa.withAppendedNote(note))
+    case None     => c
 
 /** Returns updater that updates knowledge for qa at specified index
   *

@@ -41,6 +41,7 @@ case class Result(
     competencyResults: Seq[CompetencyKnowledgeResult],
     qaResults: Seq[QAKnowledgeResult],
     noteResults: Seq[CompetencyNoteResult],
+    qaNoteResults: Seq[QANoteResult],
     // Contains competency descriptors that was created at report session and, therefore, missed in SourceDescriptor
     extraCompetencies: Map[Numeration, CompetencyDescriptor]
 )
@@ -92,3 +93,16 @@ case class CompetencyNoteResult(
 
 object CompetencyNoteResult:
   given ReadWriter[CompetencyNoteResult] = macroRW
+
+// Created QA notes during interview
+case class QANoteResult(
+    // Competency id
+    competency: Numeration,
+    // QA index
+    qaIndex: Int,
+    // Notes for this QA
+    notes: Seq[String]
+)
+
+object QANoteResult:
+  given ReadWriter[QANoteResult] = macroRW

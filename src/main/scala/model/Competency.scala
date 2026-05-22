@@ -42,16 +42,27 @@ class Competency(
     .map(c => s"num=${c.numeration},name=${c.name},qa=${qa.map(_.hashTarget)}")
     .mkString
 
+  def withRemovedNote(idx: Int) = notes.lift(idx) match
+    case Some(_) => copy(notes = notes.patch(idx, Seq.empty, 1))
+    case None    => this
+
+  def withReplacedQA(idx: Int, f: QA => QA) = qa.lift(idx) match
+    case Some(qa) => copy(qa = this.qa.patch(idx, Seq(f(qa)), 1))
+    case None => this
+
 end Competency
 
 case class QA(
     question: String,
     answer: Option[String],
-    knowledgeTest: KnowledgeTest = KnowledgeTest()
+    knowledgeTest: KnowledgeTest = KnowledgeTest(),
+    notes: Seq[String] = Seq.empty
 ):
   def withKnowledge(k: KnowledgeTest) = copy(knowledgeTest = k)
 
   def hashTarget: String = s"q=$question,a=$answer,mp=${knowledgeTest.maxPoints}"
+
+  def withAppendedNote(n: String) = copy(notes = notes.appended(n))
 end QA
 
 case class KnowledgeTest(

@@ -15,6 +15,7 @@ import view.CompetencyView
 import view.KnowledgeCompleteness
 import model.noteAppender
 import model.noteRemover
+import model.qaNoteAppender
 
 trait CompetenciesController:
   /** Returns current state of competencies */
@@ -45,6 +46,9 @@ trait CompetenciesController:
 
   /** Delete note at index in given competency */
   def deleteNote(competency: Numeration, noteIdx: Int): Seq[CompetencyView]
+
+  /** Create new note for given QA in competency */
+  def createQANote(competency: Numeration, qaIdx: Int, note: String): Seq[CompetencyView]
 end CompetenciesController
 
 class CompetenciesControllerImpl(
@@ -92,7 +96,8 @@ class CompetenciesControllerImpl(
     val flatCompetencies = state.flatMap(_.flatten)
     val qaKnowl = flatCompetencies.flatMap(toQAKnowledgeResult)
     val noteResults = flatCompetencies.map(toNoteResult)
-    resultMgmt.doExport(competencyKnowl, qaKnowl, noteResults, state)
+    val qaNoteResults = flatCompetencies.flatMap(toQANoteResult)
+    resultMgmt.doExport(competencyKnowl, qaKnowl, noteResults, qaNoteResults, state)
 
   override def createNote(competency: Numeration, note: String): Seq[CompetencyView] =
     state = updateCompetencies(state, byNumeration(competency), noteAppender(note))
@@ -100,5 +105,9 @@ class CompetenciesControllerImpl(
 
   override def deleteNote(competency: Numeration, noteIdx: Int): Seq[CompetencyView] =
     state = updateCompetencies(state, byNumeration(competency), noteRemover(noteIdx))
+    toView(state)
+
+  override def createQANote(competency: Numeration, qaIdx: Int, note: String): Seq[CompetencyView] =
+    state = updateCompetencies(state, byNumeration(competency), qaNoteAppender(qaIdx, note))
     toView(state)
 end CompetenciesControllerImpl

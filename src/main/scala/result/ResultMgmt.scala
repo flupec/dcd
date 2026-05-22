@@ -63,15 +63,17 @@ class ResultExporter(
     * @param competenciesKnowledge competency knowledges
     * @param qaKnowledges qa knowledges
     * @param notes notes
+    * @param qaNotes qa notes
     * @param allCompetencies all competencies. May not equal to competencies in dcd file
     */
   def doExport(
       competenciesKnowledge: Seq[KnowledgeComputed],
       qaKnowledges: Seq[QAKnowledgeResult],
       notes: Seq[CompetencyNoteResult],
+      qaNotes: Seq[QANoteResult],
       allCompetencies: Seq[Competency]
   ): Either[ResultExportError, Unit] =
-    val result = exportResult(competenciesKnowledge, qaKnowledges, notes, allCompetencies)
+    val result = exportResult(competenciesKnowledge, qaKnowledges, notes, qaNotes, allCompetencies)
     for
       descriptorWriter <- descriptorLocator(result.candidate)
       resultWriter <- resultLocator(result.candidate)
@@ -94,6 +96,7 @@ class ResultExporter(
       ks: Seq[KnowledgeComputed],
       qaKnowledges: Seq[QAKnowledgeResult],
       notes: Seq[CompetencyNoteResult],
+      qaNotes: Seq[QANoteResult],
       allCompetencies: Seq[Competency]
   ) =
     val extraCompetencies = allCompetencies
@@ -106,6 +109,7 @@ class ResultExporter(
       competencyResults = ks.map(toKnowledgeResult(_)),
       qaResults = qaKnowledges,
       noteResults = notes,
+      qaNoteResults = qaNotes,
       extraCompetencies = extraCompetencies
     )
 

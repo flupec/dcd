@@ -2,6 +2,7 @@ package controller
 
 import model.KnowledgeEstimate
 import result.QAKnowledgeResult
+import result.QANoteResult
 
 private def toKnowledgeTest(kc: view.KnowledgeCompleteness): model.KnowledgeTest =
   model.KnowledgeTest(estimate = toModelEstimate(kc))
@@ -55,3 +56,6 @@ def toNoteResult(c: model.Competency) = result.CompetencyNoteResult(
   competency = c.numeration,
   notes = c.notes
 )
+
+def toQANoteResult(c: model.Competency): Seq[QANoteResult] =
+  c.qa.zipWithIndex.map((qa, qaIdx) => QANoteResult(c.numeration, qaIdx, qa.notes))

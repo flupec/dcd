@@ -49,6 +49,7 @@ class CompetenciesView private (
         case PopupType.CompetencyCreate   => handledCompetencyCreateInput(key, state.selected.competency.directParent)
         case PopupType.QACreate           => handledQACreateInput(key)
         case PopupType.QAShowAnswer       => handledQAAnswerInfoInput(key)
+        case PopupType.QANoteCreate       => handledQANoteCreateInput(key)
         case PopupType.NoteCreate         => handledNoteCreateInput(key)
         case PopupType.ShowInfo(_, _, focusOnClose) => handledInfoWidgetInput(key, focusOnClose)
   )
@@ -151,6 +152,9 @@ class CompetenciesView private (
 
       // Open Popup to show answer paragraph, just change focus
       case f: KeyCode.F if f.num == 2 => focusChanged(Focus.Popup(PopupType.QAShowAnswer))
+
+      // Open Popup input for taking a note
+      case f: KeyCode.F if f.num == 4 => focusChanged(Focus.Popup(PopupType.QANoteCreate))
 
       case f: KeyCode.F if f.num == 10 =>
         cntrl.exportKnowledges
@@ -304,6 +308,7 @@ class CompetenciesView private (
         case PopupType.CompetencyCreate         => popupCompetencyCreateWidget(popup)
         case PopupType.CompetencyInsert         => popupCompetencyCreateWidget(popup)
         case PopupType.QACreate                 => popupQACreateWidget(popup)
+        case PopupType.QANoteCreate             => popupQANoteCreateWidget(popup)
         case PopupType.NoteCreate               => popupNoteCreateWidget(popup)
         case PopupType.QAShowAnswer             => qaAnswerWidget(at)
         case PopupType.ShowInfo(title, body, _) => popupInfoWidget(at, title, Text.nostyle(body))
@@ -339,6 +344,7 @@ class CompetenciesView private (
         ("DEL", "Erase estimate"),
         ("F1", "Create QA"),
         ("F2", "Show detailed"),
+        ("F4", "Create note"),
         ("F10", "Export results"),
         ("TAB", "Switch"),
         ("F12", "Exit")
@@ -385,6 +391,9 @@ class CompetenciesView private (
 
   private def popupNoteCreateWidget(popup: Popup) =
     popupInputWidget(popup, "Create note", "Enter note:")
+
+  private def popupQANoteCreateWidget(popup: Popup) =
+    popupInputWidget(popup, "Create note", "Enter QA note:")
 
   private def popupRect(window: Rect): Rect =
     val (centerx, centery) = (window.width / 2, window.height / 2)
@@ -589,6 +598,16 @@ class CompetenciesView private (
 
   private def handledQAAnswerInfoInput(key: KeyCode) = handledInfoWidgetInput(key, Focus.QAs)
 
+  private def handledQANoteCreateInput(key: KeyCode) = handleTextPopupInput(
+    key,
+    Focus.QAs,
+    note =>
+      state.selected.qaIndex.map: qaIdx =>
+        cntrl.createQANote(currentCompetency.numeration, qaIdx, note)
+      focusChanged(Focus.QAs)
+  )
+  end handledQANoteCreateInput
+
   private def handledInfoWidgetInput(key: KeyCode, focusOnClose: Focus): CompetenciesView = key match
     case _: (KeyCode.Esc | KeyCode.Enter) => focusChanged(focusOnClose)
     case _                                => this
@@ -705,6 +724,8 @@ object CompetenciesView:
     case QACreate
     // Show answer
     case QAShowAnswer
+    // Create note for QA at given competency
+    case QANoteCreate
     // Generic popup to show info
     case ShowInfo(title: String, body: String, focusOnClose: Focus)
     // Create note for given competency
