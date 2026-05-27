@@ -1,6 +1,8 @@
 package result
 
+import com.lowagie.text.Anchor
 import com.lowagie.text.Cell
+import com.lowagie.text.Chunk
 import com.lowagie.text.Document
 import com.lowagie.text.Element
 import com.lowagie.text.ElementTags
@@ -11,8 +13,10 @@ import com.lowagie.text.Table
 import com.lowagie.text.pdf.PdfWriter
 import common.EitherExtension.sequenceRight
 import common.Numeration
+import common.NumerationOrdering
 import common.ReportError
 import common.directParent
+import common.textView
 import org.jfree.chart.JFreeChart
 import org.jfree.chart.plot.SpiderWebPlot
 import org.jfree.chart.title.TextTitle
@@ -28,6 +32,10 @@ import scala.util.Success
 import scala.util.Try
 
 object ReportGenerator:
+
+  val ChapterFont = getPdfFont(24)
+  val SectionFont = getPdfFont(18)
+  val ParagraphFont = getPdfFont(12)
 
   val IndividualChartSize = (200, 200)
 
@@ -74,39 +82,89 @@ object ReportGenerator:
   // ): Either[ReportError, Unit] = generator(src, descriptor)
 
   private def individualGenerator(pdf: Document): IndividualReportGenerator = (r, s) =>
+    val knowledgeParagraphs: Either[ReportError, IndividualReport] = generateCompetencyKnowledgesParagraph(r, s)
     val competencyCharts: Either[ReportError, Seq[IndividualReport]] = generateCompetencyCharts(r, s)
-    val noteParagraphs: Either[ReportError, Seq[IndividualReport]] = generateCompetencyNotes(r, s)
+    val noteParagraphs: Either[ReportError, Seq[IndividualReport]] = generateNotes(r, s)
     val extraKnowlParagraphs: Either[ReportError, Seq[IndividualReport]] = generateExtraKnowlReport(r, s)
     val allReports = for
+      kp <- knowledgeParagraphs
       np <- noteParagraphs
       cc <- competencyCharts
       ekp <- extraKnowlParagraphs
-    yield np appendedAll cc appendedAll ekp
+    yield np appendedAll cc appendedAll ekp appended kp
 
-    for reports <- allReports yield insertIndividualReports(pdf, reports, r)
+    for
+      reports <- allReports
+      _ <- insertHeader(pdf, r, s)
+      _ <- insertIndividualReports(pdf, reports, r, s)
+      _ <- insertPageBreak(pdf)
+      _ <- insertFooter(pdf, r, s)
+    yield ()
   end individualGenerator
+
+  private def generateNotes(
+      result: Result,
+      source: SourceDescriptor
+  ): Either[ReportError, Seq[IndividualReport]] =
+    if result.noteResults.isEmpty && result.qaNoteResults.isEmpty then Right(Vector.empty)
+    else
+      for
+        compNotes <- generateCompetencyNotes(result, source)
+        qaNotes <- generateQANotes(result, source)
+      yield compNotes appendedAll qaNotes
 
   private def generateCompetencyNotes(
       result: Result,
       source: SourceDescriptor
-  ): Either[ReportError, Seq[IndividualReport]] =
-    if result.noteResults.isEmpty then Right(Vector.empty)
-    else
-      Right(for
-        nr <- result.noteResults
-        name <- getCompetencyName(nr.competency, result, source)
-        namedNote = nameAtEachNote(nr, name)
-        paragraph = IndividualReport.NotesParagraph(namedNote)
-      yield paragraph)
+  ): Either[ReportError, Seq[IndividualReport]] = Right(
+    for
+      nr <- result.noteResults
+      name <- getCompetencyName(nr.competency, result, source).toSeq
+      note <- nr.notes
+    yield IndividualReport.NoteParagraph(CompetencyR(name, nr.competency), None, note)
+  )
 
-  private def nameAtEachNote(nr: CompetencyNoteResult, competecyName: String): Seq[(competency: String, note: String)] =
-    nr.notes.map(note => (competecyName, note))
+  private def generateQANotes(
+      result: Result,
+      source: SourceDescriptor
+  ): Either[ReportError, Seq[IndividualReport]] = Right(
+    for
+      nr <- result.qaNoteResults
+      name <- getCompetencyName(nr.competency, result, source).toSeq
+      note <- nr.notes
+    yield IndividualReport.NoteParagraph(CompetencyR(name, nr.competency), Some(nr.qaIndex), note)
+  )
 
   private def getCompetencyName(competency: Numeration, result: Result, source: SourceDescriptor): Option[String] =
     source.competencies
       .get(competency)
       .orElse(result.extraCompetencies.get(competency))
       .map(_.name)
+
+  private def generateCompetencyKnowledgesParagraph(
+      r: Result,
+      s: SourceDescriptor
+  ): Either[ReportError, IndividualReport] = Right(
+    IndividualReport.KnowlParagraph(
+      getAllCompetencyNumerations(r, s)
+        .collect(n => n -> getCompetencyKnowlPercent(r, n))
+        .toMap
+    )
+  )
+
+  private def getAllCompetencyNumerations(r: Result, s: SourceDescriptor): Set[Numeration] =
+    s.competencies.keySet concat r.extraCompetencies.keySet
+
+  private def getCompetencyKnowlPercent(r: Result, n: Numeration): Option[Float] =
+    r.competencyResults
+      .filter(cd => cd.numeration == n)
+      .headOption
+      .map(ckr => ckr.receivedPoints / ckr.maxPoints * 100)
+
+  private def getCompetency(n: Numeration, r: Result, s: SourceDescriptor): Option[CompetencyDescriptor] =
+    s.competencies
+      .lift(n)
+      .orElse(r.extraCompetencies.lift(n))
 
   private def generateCompetencyCharts(r: Result, s: SourceDescriptor): Either[ReportError, Seq[IndividualReport]] =
     val resultsByNestLevel = r.competencyResults.groupBy(_.numeration.size)
@@ -177,42 +235,117 @@ object ReportGenerator:
 
   private def trimmed(src: String, maxLen: Int) = if src.length > maxLen then src.substring(0, maxLen) + "..." else src
 
+  private def insertHeader(pdf: Document, r: Result, s: SourceDescriptor): Either[ReportError, Unit] =
+    pdf.add(getChapterParagraph("Individual competencies"))
+    Right(pdf.add(getCandidateIndividualParagraph(r.candidate)))
+
+  private def insertPageBreak(pdf: Document): Either[ReportError, Unit] =
+    if !pdf.newPage() then Left(ReportError.Unexpected("Cannot insert new page")) else Right(())
+
   private def insertIndividualReports(
       pdf: Document,
       reports: Seq[IndividualReport],
-      r: Result
+      r: Result,
+      s: SourceDescriptor
   ): Either[ReportError, Unit] =
-    pdf.add(getChapterParagraph("Individual competencies"))
-    pdf.add(getCandidateIndividualParagraph(r.candidate))
-    val competencyNotes = reports.collect { case IndividualReport.NotesParagraph(notes) => notes }.toSeq.flatten
-    val extraKnowledges = reports.collect { case c @ IndividualReport.ExtraKnowlParagraph(competency, knowledge) => c }
-    val competencySpiderCharts = reports.collect({ case c @ IndividualReport.CompetencySpider(_, _, _) => c })
+    val competencyKnowledges = reports.collect { case k: IndividualReport.KnowlParagraph => k }.head
+    val notes = reports.collect { case n: IndividualReport.NoteParagraph => n }
+    val extraKnowledges = reports.collect { case c: IndividualReport.ExtraKnowlParagraph => c }
+    val competencySpiderCharts = reports.collect({ case c: IndividualReport.CompetencySpider => c })
     for
-      _ <- insertNotes(pdf, competencyNotes)
+      _ <- atSection(pdf, "Overview", insertCompetencyKnowledges(pdf, r, s, competencyKnowledges))
+      _ <- atSection(pdf, "Notes", insertNotes(pdf, notes))
       _ <- insertExtraKnowledge(pdf, extraKnowledges)
       _ <- insertIndividualChartTable(pdf, competencySpiderCharts, r)
       _ = pdf.newPage()
     yield ()
   end insertIndividualReports
 
+  private def atSection(
+      pdf: Document,
+      sectionName: String,
+      sectionContentWriter: => Either[ReportError, Unit]
+  ): Either[ReportError, Unit] =
+    pdf.add(Paragraph(sectionName, SectionFont))
+    sectionContentWriter.flatMap: _ =>
+      Right(pdf.add(Chunk.NEWLINE))
+
+  private def insertCompetencyKnowledges(
+      pdf: Document,
+      r: Result,
+      s: SourceDescriptor,
+      knowl: IndividualReport.KnowlParagraph
+  ): Either[ReportError, Unit] =
+    val allCompetencyNumerations = knowl.knowledgePercentByCompetency.keySet.toList.sorted(using NumerationOrdering)
+
+    val competencyListItems = for
+      n <- allCompetencyNumerations
+      competency <- getCompetency(n, r, s)
+
+      percent = knowl.knowledgePercentByCompetency(n)
+      listItem = createCompetencyKnowledgeListItem(n, competency.name, percent)
+    yield listItem
+
+    Right(pdf.add:
+      val l = com.lowagie.text.List(false, false)
+      l.setListSymbol("")
+      competencyListItems.foreach(l.add(_))
+      l
+    )
+  end insertCompetencyKnowledges
+
+  private def createCompetencyKnowledgeListItem(
+      n: Numeration,
+      competencyName: String,
+      knowlPercent: Option[Float]
+  ): ListItem =
+    // OPENPDF library obligates to construct nesting structure of ListItems for indent. We will use just text spaces
+    val indent = "      ".repeat(n.size - 1)
+    val text = knowlPercent match
+      case Some(percent) => s"$indent${n.textView} $competencyName [${percent.toInt}%]"
+      case None          => s"$indent${n.textView} $competencyName [n/a]"
+    val li = ListItem(text, ParagraphFont)
+    val anchor = Anchor()
+    anchor.setName("competency=" + n)
+    li.add(anchor)
+    li
+  end createCompetencyKnowledgeListItem
+
   /** Insert notes that was taken during report session */
-  private def insertNotes(pdf: Document, notes: Seq[(competency: String, note: String)]): Either[ReportError, Unit] =
-    val notesByName =
-      for (name, notesUnflatten) <- notes.groupBy(_.competency)
-      yield (name, notesUnflatten.map(_.note))
-    notesByName
-      .map((name, notes) => insertNote(pdf, name, notes))
-      .toSeq
-      .sequenceRight
-      .map(_ => ())
+  private def insertNotes(
+      pdf: Document,
+      notes: Seq[IndividualReport.NoteParagraph]
+  ): Either[ReportError, Unit] =
+    val notesByCompetency = notes.groupBy(_.competency)
+    notesByCompetency.foreach: (c, notes) =>
+      insertNote(pdf, c.name, c.numeration, notes.map(_.qaIndex), notes.map(_.note))
+    Right(())
   end insertNotes
 
-  private def insertNote(pdf: Document, competency: String, notes: Seq[String]): Either[ReportError, Unit] =
-    val font = getPdfFont(12)
-    val competencyLine = Paragraph(competency, font)
+  private def insertNote(
+      pdf: Document,
+      competency: String,
+      competencyN: Numeration,
+      qaIndices: Seq[Option[Int]],
+      notes: Seq[String]
+  ): Either[ReportError, Unit] =
+    if qaIndices.size != notes.size then return Left(ReportError.Unexpected("qaIndices size not equal to notes size"))
+
     val noteItems = for
-      note <- notes
-      listItem = ListItem(note, font)
+      i <- 0 until notes.size
+      note = notes(i)
+      qaIndex = qaIndices(i)
+      listItem =
+        val li = ListItem()
+        li.setFont(ParagraphFont)
+        qaIndex match
+          case Some(qaIndex) =>
+            val anchor = Anchor(s"Q${qaIndex + 1} ", ParagraphFont)
+            anchor.setReference(qaRelativeLink(competencyN, qaIndex))
+            li.add(anchor)
+          case None => ()
+        li.add(note)
+        li
       _ = listItem.setIndentationLeft(16f)
     yield listItem
 
@@ -224,7 +357,7 @@ object ReportGenerator:
       noteItems.foreach(l.add(_))
       l
 
-    pdf.add(competencyLine)
+    pdf.add(Paragraph(competency, ParagraphFont))
     pdf.add(notesList)
     Right(())
   end insertNote
@@ -235,7 +368,10 @@ object ReportGenerator:
       knowls: Seq[IndividualReport.ExtraKnowlParagraph]
   ): Either[ReportError, Unit] =
     val knowledgeToNotes = (k: CompetencyKnowledgeResult) => s"Got ${k.receivedPoints} out of ${k.maxPoints} points"
-    knowls.map(xk => insertNote(pdf, xk.competency, List(knowledgeToNotes(xk.knowledge)))).sequenceRight.map(_ => ())
+    knowls
+      .map(xk => insertNote(pdf, xk.competency, ???, ???, List(knowledgeToNotes(xk.knowledge))))
+      .sequenceRight
+      .map(_ => ())
 
   /** Inserts a chart that shows different competency scores */
   private def insertIndividualChartTable(
@@ -251,15 +387,51 @@ object ReportGenerator:
         ()
   end insertIndividualChartTable
 
+  private def insertFooter(pdf: Document, r: Result, s: SourceDescriptor): Either[ReportError, Unit] =
+    insertQAInfo(pdf, s)
+
+  private def insertQAInfo(pdf: Document, s: SourceDescriptor): Either[ReportError, Unit] =
+    val allCompetencyNumerations = s.competencies.keys.toList.sorted(using NumerationOrdering)
+    for
+      n <- allCompetencyNumerations
+      competency <- s.competencies.lift(n)
+      qaListItems = competency.qa.zipWithIndex.map((qa, idx) => createQAListItem(qa, idx, n))
+      _ = pdf.add:
+        val l = com.lowagie.text.List(false, false)
+        qaListItems.foreach: li =>
+          pdf.add(li)
+          pdf.add(Chunk.NEWLINE)
+        l
+    yield ()
+    Right(())
+  end insertQAInfo
+
+  private def createQAListItem(qa: QADescriptor, index: Int, n: Numeration): ListItem =
+    val anchor = Anchor()
+    anchor.setFont(ParagraphFont)
+    anchor.setName(qaAnchorName(n, index))
+    anchor.add(s"[${n.textView}] Q${index + 1}: ${qa.question}")
+    anchor.add(Chunk.NEWLINE)
+    qa.answer.foreach(ans => anchor.add(s"Ans: $ans"))
+    val li = ListItem()
+    li.setFont(ParagraphFont)
+    li.add(anchor)
+    li
+  end createQAListItem
+
+  private def qaRelativeLink(competency: Numeration, qaIndex: Int) = "#" + qaAnchorName(competency, qaIndex)
+
+  private def qaAnchorName(competency: Numeration, qaIndex: Int) = s"competency=${competency.textView}&idx=$qaIndex"
+
   private def getCandidateIndividualParagraph(c: Interviewee): Element =
-    val paragraph = Paragraph(s"${c.lastname} competencies", getPdfFont(14))
+    val paragraph = Paragraph(s"${c.lastname} competencies", ParagraphFont)
     paragraph.setAlignment(ElementTags.ALIGN_CENTER)
     return paragraph
 
   private def getPdfFont(size: Int) = com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, size.floatValue)
 
   private def getChapterParagraph(content: String): Element =
-    val paragraph = Paragraph(content, getPdfFont(18))
+    val paragraph = Paragraph(content, ChapterFont)
     paragraph.setAlignment(ElementTags.ALIGN_CENTER)
     return paragraph
 
@@ -286,6 +458,8 @@ object ReportGenerator:
   // private def comparisonGenerator(pdf: Document): ComparisonReportGenerator = (rs, s) => ???
 
   private enum IndividualReport:
+    case KnowlParagraph(knowledgePercentByCompetency: Map[Numeration, Option[Float]])
+
     /** Created when competency knowledge presents in data, but source descriptor lacks information about it - that
       * means that this competency was created on-the-fly during estimate session
       */
@@ -295,7 +469,10 @@ object ReportGenerator:
       */
     case CompetencySpider(competency: String, chart: JFreeChart, chartImg: Option[Image] = None)
 
-    /** Text informatiion with notes from estimate session
+    /** Text information with notes from estimate session
       */
-    case NotesParagraph(notes: Seq[(competency: String, note: String)])
+    case NoteParagraph(competency: CompetencyR, qaIndex: Option[Int], note: String)
+  end IndividualReport
+
+  private case class CompetencyR(name: String, numeration: Numeration)
 end ReportGenerator

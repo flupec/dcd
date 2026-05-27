@@ -17,9 +17,7 @@ class CompetencyView(
 
   override def hashCode(): Int = numeration.hashCode
 
-  def numerationView: String = numeration
-    .map(_.toString)
-    .reduceLeft((left, right) => s"${left.toString}.${right.toString}")
+  def numerationView: String = numeration.textView
 
 case class QA(
     questionBody: String,

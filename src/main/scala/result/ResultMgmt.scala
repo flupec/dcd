@@ -182,11 +182,20 @@ end ResultExporter
 
 object ResultImporter:
   def doImport(results: Seq[File], descriptor: File): Either[ResultImportError, (Seq[Result], SourceDescriptor)] =
-    val rs: Seq[Try[Result]] = results.map(f => Try(read(f)))
-    val desc: Try[SourceDescriptor] = Try(read(descriptor))
     for
-      r <- rs.map(_.toEither).sequenceRight.left.map(e => ResultImportError.FileOpErr(e.getMessage))
-      d <- desc.toEither.left.map(e => ResultImportError.FileOpErr(e.getMessage))
-    yield ((r -> d))
+      r <- readResults(results)
+      d <- readDescriptor(descriptor)
+    yield r -> d
   end doImport
+
+  private def readResults(results: Seq[File]): Either[ResultImportError, Seq[Result]] =
+    val rs: Seq[Try[Result]] = results.map(f => Try(read(f)))
+    rs.map(_.toEither)
+      .sequenceRight
+      .left
+      .map(e => ResultImportError.FileOpErr("import result err: " + e.getMessage))
+
+  private def readDescriptor(descriptor: File): Either[ResultImportError, SourceDescriptor] =
+    val desc: Try[SourceDescriptor] = Try(read(descriptor))
+    desc.toEither.left.map(e => ResultImportError.FileOpErr("import source descriptor err:" + e.getMessage))
 end ResultImporter

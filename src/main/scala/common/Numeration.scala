@@ -34,12 +34,13 @@ extension (curr: Numeration)
   def directParent: Option[Numeration] = Option.when(curr.size > 1)(curr.slice(0, curr.size - 1))
 
   def isDirectParentOf(child: Numeration) = child.directParent.map(_ == curr).getOrElse(false)
+
+  def textView: String = curr.map(_.toString).reduceLeft((left, right) => s"${left.toString}.${right.toString}")
 end extension
 
 /** Lexiographic order */
 object NumerationOrdering extends Ordering[Numeration]:
   override def compare(x: Numeration, y: Numeration): Int =
     // Stupid but easy solution
-    val stringify = (n: Numeration) =>
-      n.map(_.toString).reduceLeft((l, r) => l.concat(r))
+    val stringify = (n: Numeration) => n.map(_.toString).reduceLeft((l, r) => l.concat(r))
     stringify(x).compare(stringify(y))
