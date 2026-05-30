@@ -35,6 +35,10 @@ extension (curr: Numeration)
 
   def isDirectParentOf(child: Numeration) = child.directParent.map(_ == curr).getOrElse(false)
 
+  def root: Option[Numeration] = directParent match
+    case Some(p) => p.root
+    case None => Some(curr)
+
   def textView: String = curr.map(_.toString).reduceLeft((left, right) => s"${left.toString}.${right.toString}")
 end extension
 
