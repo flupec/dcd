@@ -97,7 +97,7 @@ class CompetenciesControllerImpl(
     val qaKnowl = flatCompetencies.flatMap(toQAKnowledgeResult)
     val noteResults = flatCompetencies.map(toNoteResult)
     val qaNoteResults = flatCompetencies.flatMap(toQANoteResult)
-    resultMgmt.doExport(competencyKnowl, qaKnowl, noteResults, qaNoteResults, state)
+    resultMgmt.doExport(competencyKnowl, qaKnowl, noteResults, qaNoteResults, flatCompetencies)
 
   override def createNote(competency: Numeration, note: String): Seq[CompetencyView] =
     state = updateCompetencies(state, byNumeration(competency), noteAppender(note))

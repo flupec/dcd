@@ -45,8 +45,8 @@ class CompetenciesView private (
       kind match
         case PopupType.CompetencyEstimate => handledCompetencyEstimationInput(key)
         case PopupType.QAsEstimate        => handledQAsEstimationInput(key)
-        case PopupType.CompetencyInsert   => handledCompetencyCreateInput(key, Some(state.selected.competency))
         case PopupType.CompetencyCreate   => handledCompetencyCreateInput(key, state.selected.competency.directParent)
+        case PopupType.CompetencyInsert   => handledCompetencyCreateInput(key, Some(state.selected.competency))
         case PopupType.QACreate           => handledQACreateInput(key)
         case PopupType.QAShowAnswer       => handledQAAnswerInfoInput(key)
         case PopupType.QANoteCreate       => handledQANoteCreateInput(key)
