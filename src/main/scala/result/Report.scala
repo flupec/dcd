@@ -1,29 +1,19 @@
 package result
 
 import com.lowagie.text.Anchor
-import com.lowagie.text.Cell
 import com.lowagie.text.Chunk
 import com.lowagie.text.Document
 import com.lowagie.text.Element
 import com.lowagie.text.ElementTags
-import com.lowagie.text.Image
 import com.lowagie.text.ListItem
 import com.lowagie.text.Paragraph
-import com.lowagie.text.Table
 import com.lowagie.text.pdf.PdfWriter
 import common.EitherExtension.sequenceRight
 import common.Numeration
 import common.NumerationOrdering
 import common.ReportError
-import common.root
 import common.textView
-import org.jfree.chart.JFreeChart
-import org.jfree.chart.plot.SpiderWebPlot
-import org.jfree.chart.title.TextTitle
-import org.jfree.data.category.DefaultCategoryDataset
 
-import java.awt.Color
-import java.awt.Font
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.file.Path
@@ -37,7 +27,7 @@ object ReportGenerator:
   val SectionFont = getPdfFont(18)
   val ParagraphFont = getPdfFont(12)
 
-  val IndividualChartSize = (200, 200)
+  val IndividualChartSize = (600, 600)
 
   type ReportTgtProvider = () => OutputStream
   type IndividualReportGenerator = (r: Result, s: SourceDescriptor) => Either[ReportError, Unit]
@@ -83,13 +73,11 @@ object ReportGenerator:
 
   private def individualGenerator(pdf: Document): IndividualReportGenerator = (r, s) =>
     val knowledgeParagraphs: Either[ReportError, IndividualReport] = generateCompetencyKnowledgesParagraph(r, s)
-    val competencyCharts: Either[ReportError, Seq[IndividualReport]] = generateCompetencyCharts(r, s)
     val noteParagraphs: Either[ReportError, Seq[IndividualReport]] = generateNotes(r, s)
     val allReports = for
       kp <- knowledgeParagraphs
       np <- noteParagraphs
-      cc <- competencyCharts
-    yield np appendedAll cc appended kp
+    yield np appended kp
 
     for
       reports <- allReports
@@ -161,51 +149,6 @@ object ReportGenerator:
       .lift(n)
       .orElse(r.extraCompetencies.lift(n))
 
-  private def generateCompetencyCharts(r: Result, s: SourceDescriptor): Either[ReportError, Seq[IndividualReport]] =
-    generateCompetencyChart(r.competencyResults, r, s)
-      .map(c => c.fold(Seq.empty)(Seq(_)))
-
-  private def generateCompetencyChart(
-      knowledges: Seq[CompetencyKnowledgeResult],
-      r: Result,
-      s: SourceDescriptor
-  ): Either[ReportError, Option[IndividualReport]] =
-    import scala.jdk.CollectionConverters.SeqHasAsJava
-    val rootKnowledges = knowledges
-      .map(_.numeration.root)
-      .collect { case Some(r) => r }
-      .distinct
-      .flatMap(rootN => knowledges.find(_.numeration == rootN))
-
-    val competencyKnowledge = for
-      k <- rootKnowledges
-      competency <- getCompetency(k.numeration, r, s)
-    yield (points = k.receivedPoints, maxPoints = k.maxPoints, competency = CompetencyR(competency.name, k.numeration))
-
-    if competencyKnowledge.isEmpty || competencyKnowledge.size < 3 then Right(None)
-    else
-      val plot = SpiderWebPlot(constructKnowledgeDataset(competencyKnowledge, r))
-      plot.setLabelFont(getChartFont(24))
-      // plot.setAxisLabelGap(-0.5d)
-      val chart = JFreeChart(plot)
-      chart.setSubtitles(List(TextTitle("Competencies knowledge", getChartFont(32))).asJava)
-      Right(Some(IndividualReport.CompetencySpiderChart(chart)))
-  end generateCompetencyChart
-
-  private def getChartFont(size: Int) = Font("Helvetica", Font.BOLD, size)
-
-  private def constructKnowledgeDataset(
-      knowlData: Seq[(points: Float, maxPoints: Float, competency: CompetencyR)],
-      r: Result
-  ): DefaultCategoryDataset =
-    val ds = DefaultCategoryDataset()
-    // Add value to plot for each knowledge
-    knowlData.foreach(d => ds.addValue(d.points, r.candidate.lastname, trimmed(d.competency.numeration.textView, 24)))
-    return ds
-  end constructKnowledgeDataset
-
-  private def trimmed(src: String, maxLen: Int) = if src.length > maxLen then src.substring(0, maxLen) + "..." else src
-
   private def insertHeader(pdf: Document, r: Result, s: SourceDescriptor): Either[ReportError, Unit] =
     pdf.add(getChapterParagraph("Individual competencies"))
     Right(pdf.add(getCandidateIndividualParagraph(r.candidate)))
@@ -221,11 +164,9 @@ object ReportGenerator:
   ): Either[ReportError, Unit] =
     val competencyKnowledges = reports.collect { case k: IndividualReport.KnowlParagraph => k }.head
     val notes = reports.collect { case n: IndividualReport.NoteParagraph => n }
-    val competencySpiderCharts = reports.collect({ case c: IndividualReport.CompetencySpiderChart => c })
     for
       _ <- atSection(pdf, "Overview", insertCompetencyKnowledges(pdf, r, s, competencyKnowledges))
       _ <- atSection(pdf, "Notes", insertNotes(pdf, notes))
-      _ <- insertIndividualChartTable(pdf, competencySpiderCharts, r)
       _ = pdf.newPage()
     yield ()
   end insertIndividualReports
@@ -331,20 +272,6 @@ object ReportGenerator:
     Right(())
   end insertNote
 
-  /** Inserts a chart that shows different competency scores */
-  private def insertIndividualChartTable(
-      pdf: Document,
-      charts: Seq[IndividualReport.CompetencySpiderChart],
-      r: Result
-  ): Either[ReportError, Unit] =
-    charts
-      .map(c => getPdfImage(c.chart, IndividualChartSize).map(img => c.copy(chartImg = Some(img))))
-      .sequenceRight
-      .map: reports =>
-        pdf.add(constructTable(reports))
-        ()
-  end insertIndividualChartTable
-
   private def insertFooter(pdf: Document, r: Result, s: SourceDescriptor): Either[ReportError, Unit] =
     insertQAInfo(pdf, s)
 
@@ -393,34 +320,11 @@ object ReportGenerator:
     paragraph.setAlignment(ElementTags.ALIGN_CENTER)
     return paragraph
 
-  private def getPdfImage(c: JFreeChart, sz: (Int, Int)): Either[ReportError, Image] =
-    val img = c.createBufferedImage(1000, 1000)
-    return Try(Image.getInstance(img, null)).toEither.left
-      .map(e => ReportError.Unexpected(e.getMessage))
-      .map: img =>
-        img.scaleToFit(sz._1.floatValue, sz._2.floatValue)
-        img
-  end getPdfImage
-
-  private def constructTable(reports: Seq[IndividualReport.CompetencySpiderChart]): Table =
-    val table = Table(2)
-    table.setBorderColor(Color.WHITE)
-    table.setSpacing(5f)
-    reports.foreach: report =>
-      val cell = Cell(report.chartImg.get)
-      cell.setBorderColor(Color.WHITE)
-      table.addCell(cell)
-    return table
-
   // TODO IMPL ME
   // private def comparisonGenerator(pdf: Document): ComparisonReportGenerator = (rs, s) => ???
 
   private enum IndividualReport:
     case KnowlParagraph(knowledgePercentByCompetency: Map[Numeration, Option[Float]])
-
-    /** Graph that shows knowledge for different competencies
-      */
-    case CompetencySpiderChart(chart: JFreeChart, chartImg: Option[Image] = None)
 
     /** Text information with notes from estimate session
       */
