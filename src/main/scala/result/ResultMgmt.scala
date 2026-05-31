@@ -18,8 +18,7 @@ import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Base64
-import scala.annotation.tailrec
+import java.util.HexFormat
 import scala.util.Try
 import scala.util.Using
 
@@ -45,8 +44,7 @@ def exportResultLocator(l: ExportDirLocator): ExportTgtLocator = c =>
 
 def sourceDescriptorLocator(l: ExportDirLocator, sourceHash: String): ExportTgtLocator = c =>
   l.apply.flatMap: exportDir =>
-    val shortenedHash = sourceHash.substring(0, sourceHash.length.min(6))
-    val filename = s"descriptor-$shortenedHash.json"
+    val filename = s"descriptor-$sourceHash.json"
     Right(FileWriter(exportDir.resolve(filename).toFile))
 
 class ResultExporter(
@@ -122,12 +120,6 @@ end ResultExporter
 
 object ResultExporter:
 
-  // We want to use base64 encoded hash as substring in filename but, for example, '/' is path separator, so replace it
-  // Replaceable -> (replaceable, replacer) mapping
-  private val Base64BannedChars = Map(
-    "/" -> ("/", "-")
-  )
-
   def apply(
       sourceCompetencies: Seq[Competency],
       candidate: Interviewee,
@@ -153,8 +145,7 @@ object ResultExporter:
   private def computeHash(source: Seq[Competency]): String =
     val hashTarget = source.map(_.hashTarget).mkString
     val hash = MessageDigest.getInstance("SHA-256").digest(hashTarget.getBytes(StandardCharsets.UTF_8))
-    val b64Hash = Base64.getEncoder.encodeToString(hash)
-    return replaceBannedChars(b64Hash, Base64BannedChars)
+    HexFormat.of.formatHex(hash)
 
   private def competencyDescriptor(sourceCompetencies: Seq[Competency], hash: String) =
     val flattenSource = sourceCompetencies.flatMap(_.flatten)
@@ -166,18 +157,6 @@ object ResultExporter:
   )
 
   private def toQADescriptors(qs: Seq[QA]) = qs.map(q => QADescriptor(question = q.question, answer = q.answer))
-
-  @tailrec
-  private def replaceBannedChars(tgt: String, replacings: Map[String, (String, String)]): String =
-    if replacings.isEmpty then tgt
-    else
-      val anyReplacing = replacings.head
-      val (replaceable, replace) = anyReplacing._2
-      replaceBannedChars(tgt.replaceAll(replaceable, replace), replacings removed anyReplacing._1)
-
-  // TODO
-  // @tailrec
-  // private def restoreBannedChars(tgt: String, restoreWith: Map[String, (String, String)]): String = ???
 end ResultExporter
 
 object ResultImporter:
