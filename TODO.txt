@@ -30,3 +30,4 @@ to save formatting. Right now show functinality removes all whitespaces and EOL 
 15 [CANCELLED] Add note delete at view
 16 Implement footline element wrapping if there are too many of them
 17 Refactor Report functionality, right now it is not testable
+18 Implement i18n for report
